@@ -179,3 +179,21 @@ ipcMain.handle("ws:run", (_e, code: string, lang: string) => {
     p.on("error", (err) => resolve({ stdout, stderr: String(err), code: -1 }));
   });
 });
+
+ipcMain.handle("ws:root", () => workspaceRoot);
+ipcMain.handle("ws:list", async (_e, rel: string) => {
+  const entries = await fs.promises.readdir(inWorkspace(rel || "."), { withFileTypes: true });
+  return entries.slice(0, 500).map((d) => ({ name: d.name, dir: d.isDirectory() }));
+});
+ipcMain.handle("ws:cmd", (_e, command: string) => {
+  const cwd = inWorkspace(".");
+  return new Promise((resolve) => {
+    const p = spawn(command, { cwd, shell: true, timeout: 120_000, windowsHide: true });
+    let stdout = "";
+    let stderr = "";
+    p.stdout.on("data", (d) => (stdout += d));
+    p.stderr.on("data", (d) => (stderr += d));
+    p.on("close", (c) => resolve({ stdout: stdout.slice(-20000), stderr: stderr.slice(-8000), code: c ?? -1 }));
+    p.on("error", (err) => resolve({ stdout, stderr: String(err), code: -1 }));
+  });
+});

@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld("kernel", {
     readFile: (rel: string) => ipcRenderer.invoke("ws:read", rel),
     writeFile: (rel: string, content: string) => ipcRenderer.invoke("ws:write", rel, content),
     runCode: (code: string, lang: string) => ipcRenderer.invoke("ws:run", code, lang),
+    runCommand: (command: string) => ipcRenderer.invoke("ws:cmd", command),
+    listFiles: (rel: string) => ipcRenderer.invoke("ws:list", rel),
+    root: () => ipcRenderer.invoke("ws:root"),
   },
   onFocusCommandBar: (cb: () => void) => {
     ipcRenderer.on("kernel:focus-command-bar", () => cb());

@@ -10,6 +10,14 @@ export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: st
   ollama: { label: "Local (Ollama)", baseUrl: "http://localhost:11434/v1", model: "llama3.1", needsKey: false },
 };
 
+/** Relative bases (the built-in provider) need the web host when running inside the desktop app. */
+export function resolveBase(base: string) {
+  const b = base.replace(/\/$/, "");
+  if (!b.startsWith("/")) return b;
+  const remote = (import.meta.env["VITE_KERNEL_REMOTE_URL"] as string | undefined) ?? "";
+  return typeof window !== "undefined" && window.location.protocol === "app:" ? remote.replace(/\/$/, "") + b : b;
+}
+
 export const apiKeyName = (p: ProviderKind) => `apiKey:${p}`;
 
 export type WireMessage =
@@ -66,7 +74,7 @@ export async function streamChat(opts: {
   if (key) headers["Authorization"] = `Bearer ${key}`;
   if (settings.provider === "openrouter") headers["X-Title"] = "Kernel Axiom";
 
-  const res = await fetch(`${(settings.baseUrl || preset.baseUrl).replace(/\/$/, "")}/chat/completions`, {
+  const res = await fetch(`${resolveBase(settings.baseUrl || preset.baseUrl)}/chat/completions`, {
     method: "POST",
     headers,
     signal: opts.signal ?? null,
