@@ -138,13 +138,18 @@ const TOOLS: ToolDef[] = [
   fn("read_file", "Read a text file from the workspace or notes.", { path: str }, ["path"]),
   fn("write_file", "Create or overwrite a text file in the workspace (also saved to notes). The user must approve.", { path: str, content: str }, ["path", "content"]),
   fn("run_command", "Run a shell command inside the user's workspace folder (desktop app only). The user must approve.", { command: str }, ["command"]),
+  fn("web_search", "Search the web. Returns titles, URLs and snippets. Follow up with fetch_url to read a result.", { query: str }, ["query"]),
+  fn("open_url", "Open a link, map, phone number (tel:), email (mailto:) or message (sms:) on the user's device. The user must approve.", { url: str, reason: str }, ["url", "reason"]),
+  fn("copy_to_clipboard", "Copy text to the user's clipboard.", { text: str }, ["text"]),
+  fn("share", "Open the device share sheet (phone) to send text or a link to another app. The user must approve.", { title: str, text: str }, ["title", "text"]),
+  fn("notify", "Show a device notification to the user, e.g. when a long task finishes.", { title: str, body: str }, ["title", "body"]),
   fn("fetch_url", "Fetch a public web page and return its readable text.", { url: str }, ["url"]),
   fn("remember", "Save a short fact about the user or their preferences to long-term memory. The user must approve.", { key: str, fact: str }, ["key", "fact"]),
 ];
 
 const SYSTEM = `You are Kernel Axiom, a calm, precise autonomous agent running on the user's own computer.
 Work agentically: for anything beyond a one-line answer, call "plan" first, then use tools step by step, check results, and keep going until the task is done. Prefer doing over asking.
-Tools: list_files, read_file, write_file, run_command, fetch_url, remember. Writes, commands and memory need the user's approval, which the app requests automatically; if denied, adapt and continue without it.
+Tools: plan, web_search, fetch_url, list_files, read_file, write_file, run_command, open_url, copy_to_clipboard, share, notify, remember. For research, search first, then read 2-3 good results before answering, and cite URLs. Writes, commands and memory need the user's approval, which the app requests automatically; if denied, adapt and continue without it.
 When finished, reply with a short summary of what you did and where results are. Be concise, no emojis.`;
 
 type Args = Record<string, unknown>;
@@ -253,6 +258,56 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
         } finally {
           clearInterval(t);
         }
+      }
+      case "web_search": {
+        const query = s(a["query"]);
+        emit({ type: "status", orb: "searching", label: "Searching" });
+        emit({ type: "workspace", patch: { url: "search: " + query, status: "Searching", readingLine: -1 } });
+        const step = st.start("Searching the web", query.slice(0, 60));
+        const res = await fetch(`${resolveBase("/api/kernel")}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }), signal });
+        const j = (await res.json()) as { results?: { title: string; url: string; snippet: string }[]; error?: string };
+        const n = j.results?.length ?? 0;
+        st.finish(step, { title: n ? `Searched the web · ${n} results` : "Search found nothing", status: n ? "done" : "failed" });
+        return j.error ? `Error: ${j.error}` : (j.results ?? []).map((r, i) => `${i + 1}. ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n") || "No results.";
+      }
+      case "open_url": {
+        const url = s(a["url"]);
+        if (!/^(https?:|tel:|mailto:|sms:|geo:)/i.test(url)) return "Only http(s), tel, mailto, sms and geo links can be opened.";
+        if (!(await approve({ kind: "send-data", title: "Open on your device", preview: `${url}\n\n${s(a["reason"])}` }))) return "The user declined.";
+        const step = st.start("Opened on your device", url.slice(0, 60));
+        window.open(url, "_blank", "noopener");
+        st.finish(step);
+        return "Opened.";
+      }
+      case "copy_to_clipboard": {
+        try {
+          await navigator.clipboard.writeText(s(a["text"]));
+          st.finish(st.start("Copied to clipboard", s(a["text"]).slice(0, 60)));
+          return "Copied.";
+        } catch {
+          return "Clipboard is not available here.";
+        }
+      }
+      case "share": {
+        if (!(await approve({ kind: "send-data", title: "Share to another app", preview: `${s(a["title"])}\n\n${s(a["text"])}` }))) return "The user declined.";
+        if (!navigator.share) {
+          await navigator.clipboard?.writeText(s(a["text"])).catch(() => undefined);
+          return "Share sheet unavailable on this device; copied the text to the clipboard instead.";
+        }
+        try {
+          await navigator.share({ title: s(a["title"]), text: s(a["text"]) });
+          st.finish(st.start("Shared", s(a["title"]).slice(0, 60)));
+          return "Shared.";
+        } catch {
+          return "The user cancelled sharing.";
+        }
+      }
+      case "notify": {
+        if (typeof Notification === "undefined") return "Notifications are not supported here.";
+        const perm = Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission;
+        if (perm !== "granted") return "Notifications are blocked.";
+        new Notification(s(a["title"]), { body: s(a["body"]), icon: "/icon-192.png" });
+        return "Notified.";
       }
       case "remember": {
         const fact = s(a["fact"]);
