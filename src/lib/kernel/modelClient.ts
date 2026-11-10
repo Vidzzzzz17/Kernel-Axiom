@@ -2,6 +2,7 @@ import type { ProviderKind, Settings } from "./types";
 import { secrets } from "./bridge";
 
 export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: string; model: string; needsKey: boolean }> = {
+  kernel: { label: "Kernel AI (built in)", baseUrl: "/api/kernel", model: "openai/gpt-6-astra", needsKey: false },
   demo: { label: "Demo (simulated)", baseUrl: "", model: "", needsKey: false },
   openai: { label: "OpenAI-compatible", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", needsKey: true },
   openrouter: { label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini", needsKey: true },
@@ -27,6 +28,12 @@ export interface ToolDef {
   function: { name: string; description: string; parameters: Record<string, unknown> };
 }
 
+export class ModelError extends Error {
+  constructor(message: string, public status?: number) {
+    super(status === 402 ? "AI credits are used up for this workspace. Add credits to keep going." : status === 429 ? "Too many requests right now. Wait a moment and try again." : message);
+  }
+}
+
 export interface StreamResult {
   text: string;
   toolCalls: ToolCall[];
@@ -48,6 +55,7 @@ export async function streamChat(opts: {
   tools?: ToolDef[];
   signal?: AbortSignal;
   onToken: (delta: string) => void;
+  onReasoning?: (delta: string) => void;
 }): Promise<StreamResult> {
   const { settings } = opts;
   const preset = PROVIDER_PRESETS[settings.provider];
@@ -71,7 +79,7 @@ export async function streamChat(opts: {
   });
   if (!res.ok || !res.body) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Provider error ${res.status}: ${body.slice(0, 200)}`);
+    throw new ModelError(`Provider error ${res.status}: ${body.slice(0, 200)}`, res.status);
   }
 
   const reader = res.body.getReader();
@@ -93,7 +101,9 @@ export async function streamChat(opts: {
       if (data === "[DONE]") continue;
       try {
         const json = JSON.parse(data);
+        if (json.error) throw new ModelError(json.error.message ?? "Model error", json.error.status);
         const delta = json.choices?.[0]?.delta ?? {};
+        if (delta.reasoning) opts.onReasoning?.(delta.reasoning);
         if (delta.content) {
           text += delta.content;
           opts.onToken(delta.content);
@@ -105,7 +115,8 @@ export async function streamChat(opts: {
           if (tc.function?.name) calls[i].function.name += tc.function.name;
           if (tc.function?.arguments) calls[i].function.arguments += tc.function.arguments;
         }
-      } catch {
+      } catch (e) {
+        if (e instanceof ModelError) throw e;
         /* partial frame; ignore */
       }
     }
