@@ -299,7 +299,7 @@ export function KernelApp() {
                   onSend={send}
                   onStop={stop}
                   onVoice={() => setVoiceOpen(true)}
-                  placeholder={running ? "Steer while it works" : undefined}
+                  placeholder={running ? "Steer while it works" : wsOpen ? "Ask anything" : undefined}
                 />
                 <p className="mt-2 text-center text-xs text-muted-foreground">Actions that change files or send data ask first.</p>
               </div>

@@ -28,3 +28,11 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- Kernel Axiom is single-user and local-first: data lives in IndexedDB via Dexie (`src/lib/kernel/db.ts`); no Lovable Cloud, no accounts. Why: the user wants no login and all data on-device.
+- All agent work goes through `runAgent()` (`src/lib/kernel/agent.ts`) and model calls through `src/lib/kernel/modelClient.ts` (OpenAI-compatible, user-supplied key, called from the client). Why: providers must be swappable without UI changes.
+- Risky tools (file writes, code runs, sending data) must call `requestApproval` before executing. Why: approval-first is a core product promise.
+- API keys go only through `secrets` in `src/lib/kernel/bridge.ts` (Electron safeStorage, else memory); never localStorage/IndexedDB. Why: keys must not be stored in plain text.
+- Electron lives in `electron/`, bundled by `scripts/electron.mjs`; the desktop build sets `KERNEL_ELECTRON=1` to emit an SPA shell served via the `app://` protocol. Why: keeps the desktop build isolated from the web deploy.
+- Orb visuals are pure CSS in `src/styles.css` (`.orb[data-state]`); states change only eyes/posture. Why: brand rule.

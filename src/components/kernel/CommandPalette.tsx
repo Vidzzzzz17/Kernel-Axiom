@@ -5,7 +5,7 @@ import type { MemoryNote, Task } from "@/lib/kernel/types";
 import { spring } from "./ui";
 
 const itemCls =
-  "flex min-h-11 cursor-pointer items-center justify-between rounded-xl px-3 text-sm data-[selected=true]:bg-foreground/[0.06]";
+  "flex min-h-11 cursor-pointer items-center justify-between gap-4 rounded-xl px-3 text-sm data-[selected=true]:bg-foreground/[0.06]";
 const groupCls =
   "[&_[cmdk-group-heading]]:label-mono [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:text-muted-foreground";
 
