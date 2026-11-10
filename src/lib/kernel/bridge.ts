@@ -10,6 +10,9 @@ export interface KernelBridge {
     readFile(rel: string): Promise<string>;
     writeFile(rel: string, content: string): Promise<void>;
     runCode(code: string, lang: string): Promise<{ stdout: string; stderr: string; code: number }>;
+    runCommand(command: string): Promise<{ stdout: string; stderr: string; code: number }>;
+    listFiles(rel: string): Promise<{ name: string; dir: boolean }[]>;
+    root(): Promise<string | null>;
   };
   onFocusCommandBar?(cb: () => void): void;
 }

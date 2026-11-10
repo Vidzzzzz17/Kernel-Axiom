@@ -1,6 +1,6 @@
 import type { AgentEvent, ApprovalRequest, ChatMessage, Settings, Step } from "./types";
-import { streamChat, type ToolDef, type WireMessage } from "./modelClient";
-import { uid, writeMemory } from "./db";
+import { resolveBase, streamChat, type ToolDef, type WireMessage } from "./modelClient";
+import { db, uid, writeMemory } from "./db";
 import { isDesktop } from "./bridge";
 
 export interface RunAgentInput {
@@ -126,106 +126,176 @@ async function runDemo({ prompt, signal, emit, requestApproval, takeSteer }: Run
 
 /* ------------------------------------------------------------------ */
 
+const fn = (name: string, description: string, properties: Record<string, unknown>, required: string[]): ToolDef => ({
+  type: "function",
+  function: { name, description, parameters: { type: "object", properties, required, additionalProperties: false } },
+});
+const str = { type: "string" };
+
 const TOOLS: ToolDef[] = [
-  {
-    type: "function",
-    function: {
-      name: "write_note",
-      description: "Write or overwrite a markdown note in the user's local notes. Always asks the user first.",
-      parameters: {
-        type: "object",
-        properties: { path: { type: "string" }, content: { type: "string" } },
-        required: ["path", "content"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "run_code",
-      description: "Run a short script inside the user's chosen workspace folder (desktop app only). Always asks first.",
-      parameters: {
-        type: "object",
-        properties: { language: { type: "string" }, code: { type: "string" } },
-        required: ["language", "code"],
-      },
-    },
-  },
+  fn("plan", "Share a short numbered plan before multi-step work. Call once at the start.", { steps: { type: "array", items: str } }, ["steps"]),
+  fn("list_files", "List files in a folder of the user's workspace (desktop) or their saved notes (browser).", { dir: str }, ["dir"]),
+  fn("read_file", "Read a text file from the workspace or notes.", { path: str }, ["path"]),
+  fn("write_file", "Create or overwrite a text file in the workspace (also saved to notes). The user must approve.", { path: str, content: str }, ["path", "content"]),
+  fn("run_command", "Run a shell command inside the user's workspace folder (desktop app only). The user must approve.", { command: str }, ["command"]),
+  fn("fetch_url", "Fetch a public web page and return its readable text.", { url: str }, ["url"]),
+  fn("remember", "Save a short fact about the user or their preferences to long-term memory. The user must approve.", { key: str, fact: str }, ["key", "fact"]),
 ];
+
+const SYSTEM = `You are Kernel Axiom, a calm, precise autonomous agent running on the user's own computer.
+Work agentically: for anything beyond a one-line answer, call "plan" first, then use tools step by step, check results, and keep going until the task is done. Prefer doing over asking.
+Tools: list_files, read_file, write_file, run_command, fetch_url, remember. Writes, commands and memory need the user's approval, which the app requests automatically; if denied, adapt and continue without it.
+When finished, reply with a short summary of what you did and where results are. Be concise, no emojis.`;
+
+type Args = Record<string, unknown>;
+const s = (v: unknown) => (typeof v === "string" ? v : "");
+
+async function ensureWorkspace() {
+  const ws = window.kernel?.workspace;
+  if (!ws) return null;
+  return (await ws.root()) ?? (await ws.choose());
+}
 
 async function runModel({ history, prompt, settings, signal, emit, requestApproval, takeSteer }: RunAgentInput) {
   const st = stepper(emit);
+  const desktop = isDesktop() && !!window.kernel?.workspace;
+  const memories = (await db.memory.where("path").startsWith("memory/").toArray()).map((m) => `- ${m.content}`).join("\n");
   const messages: WireMessage[] = [
-    {
-      role: "system",
-      content:
-        "You are Kernel Axiom, a calm, precise agent. Be concise. Use tools when they help; risky tools require the user's approval, which the app handles.",
-    },
+    { role: "system", content: SYSTEM + `\nEnvironment: ${desktop ? "desktop app with a real workspace folder" : "web browser; files are the user's saved notes, run_command is unavailable"}.` + (memories ? `\nKnown about the user:\n${memories}` : "") },
     ...history.map((m) => ({ role: m.role, content: m.content }) as WireMessage),
     { role: "user", content: prompt },
   ];
 
-  for (let turn = 0; turn < 8; turn++) {
-    for (const note of takeSteer()) messages.push({ role: "user", content: `(Steering note) ${note}` });
+  const approve = async (req: Omit<ApprovalRequest, "id">) => {
+    emit({ type: "status", orb: "needs-approval", label: "Waiting for you" });
+    const full = { ...req, id: uid() };
+    const ok = await requestApproval(full);
+    emit({ type: "approval-result", record: { ...full, decision: ok ? "allowed" : "denied" } });
+    return ok;
+  };
+
+  const exec = async (name: string, a: Args): Promise<string> => {
+    switch (name) {
+      case "plan": {
+        const steps = Array.isArray(a["steps"]) ? (a["steps"] as string[]) : [];
+        const p = st.start("Planned the approach", steps.slice(0, 4).join(" · "));
+        st.finish(p);
+        return "Plan noted. Proceed.";
+      }
+      case "list_files": {
+        emit({ type: "status", orb: "looking", label: "Looking around" });
+        const step = st.start("Listing files", s(a["dir"]) || ".");
+        let out: string;
+        if (desktop && (await ensureWorkspace())) {
+          const list = await window.kernel!.workspace!.listFiles(s(a["dir"]) || ".");
+          out = list.map((f) => (f.dir ? f.name + "/" : f.name)).join("\n") || "(empty)";
+        } else out = (await db.memory.toArray()).map((m) => m.path).join("\n") || "(no notes yet)";
+        st.finish(step, { title: "Listed files" });
+        return out;
+      }
+      case "read_file": {
+        emit({ type: "status", orb: "reading", label: "Reading" });
+        const path = s(a["path"]);
+        const step = st.start("Reading a file", path);
+        let out: string;
+        try {
+          if (desktop && (await ensureWorkspace())) out = await window.kernel!.workspace!.readFile(path);
+          else out = (await db.memory.where("path").equals(path).first())?.content ?? `No file at ${path}`;
+          emit({ type: "workspace", patch: { code: out.slice(0, 4000), status: "Reading" } });
+          st.finish(step, { title: "Read a file" });
+        } catch (e) {
+          out = `Error: ${(e as Error).message}`;
+          st.finish(step, { title: "Couldn't read file", status: "failed" });
+        }
+        return out.slice(0, 15000);
+      }
+      case "write_file": {
+        const path = s(a["path"]);
+        const content = s(a["content"]);
+        if (!(await approve({ kind: "write-file", title: `Write a file to ${path}`, preview: content.slice(0, 4000) }))) return "The user denied this write.";
+        emit({ type: "status", orb: "saving-memory", label: "Saving" });
+        const step = st.start("Writing file", path);
+        try {
+          if (desktop && (await ensureWorkspace())) await window.kernel!.workspace!.writeFile(path, content);
+          await writeMemory(path, content);
+          st.finish(step, { title: "Wrote file" });
+          return `Wrote ${content.length} characters to ${path}.`;
+        } catch (e) {
+          st.finish(step, { title: "Couldn't write file", status: "failed" });
+          return `Error: ${(e as Error).message}`;
+        }
+      }
+      case "run_command": {
+        const command = s(a["command"]);
+        if (!desktop) return "run_command is only available in the Kernel Axiom desktop app. Continue without it.";
+        emit({ type: "workspace", patch: { code: "$ " + command, status: "Waiting for approval" } });
+        if (!(await approve({ kind: "run-code", title: "Run a command on your computer", preview: command }))) return "The user denied this command.";
+        if (!(await ensureWorkspace())) return "No workspace folder chosen.";
+        emit({ type: "status", orb: "writing-code", label: "Running code" });
+        const step = st.start("Running command", command.slice(0, 60));
+        const r = await window.kernel!.workspace!.runCommand(command);
+        emit({ type: "workspace", patch: { code: `$ ${command}\n${r.stdout}${r.stderr}`.slice(0, 6000), status: "Running code" } });
+        st.finish(step, { title: r.code === 0 ? "Ran command" : `Command exited ${r.code}`, status: r.code === 0 ? "done" : "failed" });
+        return JSON.stringify(r).slice(0, 12000);
+      }
+      case "fetch_url": {
+        const url = s(a["url"]);
+        emit({ type: "status", orb: "searching", label: "Browsing" });
+        emit({ type: "workspace", patch: { url: url.replace(/^https?:\/\//, ""), status: "Reading", readingLine: -1 } });
+        const step = st.start("Reading a page", url.replace(/^https?:\/\//, "").slice(0, 60));
+        let line = 0;
+        const t = setInterval(() => emit({ type: "workspace", patch: { readingLine: (line += 2) % 10 } }), 260);
+        try {
+          const res = await fetch(`${resolveBase("/api/kernel")}/fetch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }), signal });
+          const j = (await res.json()) as { title?: string; text?: string; error?: string };
+          st.finish(step, { title: j.error ? "Couldn't read page" : "Read a page", detail: j.title || step.detail, status: j.error ? "failed" : "done" });
+          return j.error ? `Error: ${j.error}` : `Title: ${j.title}\n\n${j.text}`;
+        } finally {
+          clearInterval(t);
+        }
+      }
+      case "remember": {
+        const fact = s(a["fact"]);
+        if (!(await approve({ kind: "send-data", title: "Remember this about you", preview: fact }))) return "The user declined.";
+        emit({ type: "status", orb: "saving-memory", label: "Remembering" });
+        await writeMemory(`memory/${s(a["key"]).replace(/[^\w-]+/g, "-") || uid()}`, fact);
+        const step = st.start("Saved to memory", fact.slice(0, 60));
+        st.finish(step);
+        return "Saved.";
+      }
+      default:
+        return `Unknown tool ${name}`;
+    }
+  };
+
+  for (let turn = 0; turn < 24; turn++) {
+    for (const note of takeSteer()) messages.push({ role: "user", content: `(Steering note from the user, mid-task) ${note}` });
     emit({ type: "status", orb: "thinking", label: "Thinking" });
-    const step = st.start(turn === 0 ? "Thinking" : "Continuing", settings.model);
-    let first = true;
+    let wrote = false;
     const res = await streamChat({
       settings,
       messages,
       tools: TOOLS,
       signal,
       onToken: (d) => {
-        if (first) {
-          emit({ type: "status", orb: "speaking", label: "Writing" });
-          first = false;
-        }
+        if (!wrote) emit({ type: "status", orb: "speaking", label: "Writing" });
+        wrote = true;
         emit({ type: "text", delta: d });
       },
     });
-    st.finish(step, { title: turn === 0 ? "Thought it through" : "Continued" });
+    if (res.text) emit({ type: "text", delta: "\n\n" });
     messages.push({ role: "assistant", content: res.text || null, tool_calls: res.toolCalls.length ? res.toolCalls : undefined });
     if (!res.toolCalls.length) break;
-
     for (const call of res.toolCalls) {
-      let args: { path: string; content: string; language: string; code: string } = { path: "", content: "", language: "", code: "" };
+      let args: Args = {};
       try {
-        args = { ...args, ...JSON.parse(call.function.arguments || "{}") };
+        args = JSON.parse(call.function.arguments || "{}");
       } catch {
-        /* leave empty */
+        /* empty */
       }
-      let result = "";
-      if (call.function.name === "write_note") {
-        emit({ type: "status", orb: "needs-approval", label: "Waiting for you" });
-        const req: ApprovalRequest = { id: uid(), kind: "write-file", title: `Write a file to ${args.path}`, preview: args.content ?? "" };
-        const ok = await requestApproval(req);
-        emit({ type: "approval-result", record: { ...req, decision: ok ? "allowed" : "denied" } });
-        if (ok) {
-          emit({ type: "status", orb: "saving-memory", label: "Saving" });
-          const s = st.start("Saving to notes", args.path);
-          if (isDesktop() && window.kernel?.workspace) await window.kernel.workspace.writeFile(args.path, args.content);
-          await writeMemory(args.path, args.content);
-          st.finish(s, { title: "Saved to notes" });
-          result = "Saved.";
-        } else result = "The user denied this action.";
-      } else if (call.function.name === "run_code") {
-        emit({ type: "status", orb: "needs-approval", label: "Waiting for you" });
-        emit({ type: "workspace", patch: { code: args.code, status: "Waiting for approval" } });
-        const req: ApprovalRequest = { id: uid(), kind: "run-code", title: `Run ${args.language} code`, preview: args.code ?? "" };
-        const ok = await requestApproval(req);
-        emit({ type: "approval-result", record: { ...req, decision: ok ? "allowed" : "denied" } });
-        if (!ok) result = "The user denied this action.";
-        else if (!window.kernel?.workspace) result = "Code execution is only available in the desktop app.";
-        else {
-          emit({ type: "status", orb: "writing-code", label: "Running code" });
-          const s = st.start("Running code in sandbox", args.language);
-          const out = await window.kernel.workspace.runCode(args.code, args.language);
-          st.finish(s, { title: "Ran code in sandbox", status: out.code === 0 ? "done" : "failed" });
-          result = JSON.stringify(out).slice(0, 4000);
-        }
-      } else result = `Unknown tool ${call.function.name}`;
+      const result = await exec(call.function.name, args);
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
     }
   }
-  emit({ type: "status", orb: "done", label: "Done" });
+  emit({ type: "status", orb: "celebrating", label: "Done" });
 }

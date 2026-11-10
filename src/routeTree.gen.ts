@@ -10,33 +10,54 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiKernelFetchRouteImport } from './routes/api/kernel/fetch'
+import { Route as ApiKernelChatCompletionsRouteImport } from './routes/api/kernel/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiKernelFetchRoute = ApiKernelFetchRouteImport.update({
+  id: '/api/kernel/fetch',
+  path: '/api/kernel/fetch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKernelChatCompletionsRoute =
+  ApiKernelChatCompletionsRouteImport.update({
+    id: '/api/kernel/chat/completions',
+    path: '/api/kernel/chat/completions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/kernel/fetch': typeof ApiKernelFetchRoute
+  '/api/kernel/chat/completions': typeof ApiKernelChatCompletionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/kernel/fetch': typeof ApiKernelFetchRoute
+  '/api/kernel/chat/completions': typeof ApiKernelChatCompletionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/kernel/fetch': typeof ApiKernelFetchRoute
+  '/api/kernel/chat/completions': typeof ApiKernelChatCompletionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/kernel/fetch' | '/api/kernel/chat/completions'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/kernel/fetch' | '/api/kernel/chat/completions'
+  id: '__root__' | '/' | '/api/kernel/fetch' | '/api/kernel/chat/completions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiKernelFetchRoute: typeof ApiKernelFetchRoute
+  ApiKernelChatCompletionsRoute: typeof ApiKernelChatCompletionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +69,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/kernel/fetch': {
+      id: '/api/kernel/fetch'
+      path: '/api/kernel/fetch'
+      fullPath: '/api/kernel/fetch'
+      preLoaderRoute: typeof ApiKernelFetchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kernel/chat/completions': {
+      id: '/api/kernel/chat/completions'
+      path: '/api/kernel/chat/completions'
+      fullPath: '/api/kernel/chat/completions'
+      preLoaderRoute: typeof ApiKernelChatCompletionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiKernelFetchRoute: ApiKernelFetchRoute,
+  ApiKernelChatCompletionsRoute: ApiKernelChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

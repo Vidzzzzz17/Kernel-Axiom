@@ -247,8 +247,8 @@ export function KernelApp() {
 
           {isHome ? (
             <div className="flex flex-1 flex-col items-center justify-center px-4 pb-10">
-              <Orb size={isMobile ? 96 : 128} state={restOrb === "idle" ? "looking" : restOrb} />
-              <h2 className="mt-8 text-center text-4xl sm:text-5xl">What should we work on?</h2>
+              <Orb size={isMobile ? 96 : 128} state={restOrb === "idle" ? "looking" : restOrb} follow={restOrb === "idle"} />
+              <h2 className="rise-in mt-8 text-center text-4xl sm:text-5xl">What should we work on?</h2>
               <Composer ref={composerRef} className="mt-8 w-full max-w-2xl" onSend={send} onVoice={() => setVoiceOpen(true)} hint />
               <ul className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((s) => (
@@ -390,7 +390,9 @@ function AssistantBlock({
 }) {
   return (
     <div className="flex gap-3">
-      <Orb size={32} state={orb} className="mt-0.5" />
+      <div className={cn("mt-0.5 h-fit rounded-full", live && !["done", "celebrating", "error", "paused"].includes(orb) && "orb-halo")}>
+        <Orb size={32} state={orb} />
+      </div>
       <div className="min-w-0 flex-1 space-y-3">
         <p className="flex items-center gap-2 text-sm">
           Kernel Axiom
@@ -399,7 +401,8 @@ function AssistantBlock({
           )}
         </p>
         {steps.length > 0 && <StepsCard steps={steps} startedAt={startedAt} live={live} />}
-        {text && <ReactMarkdownLite text={text} />}
+        {text && <ReactMarkdownLite text={text} streaming={live && orb === "speaking"} />}
+        {live && !text && orb === "thinking" && steps.length === 0 && <p className="shimmer-text text-[15px]">Thinking it through</p>}
         {approvals.map((a) => (
           <ApprovalCard key={a.id} request={a} record />
         ))}

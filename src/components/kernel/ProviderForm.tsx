@@ -70,7 +70,11 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
         </div>
       </fieldset>
 
-      {provider === "demo" ? (
+      {provider === "kernel" ? (
+        <p className="text-sm text-muted-foreground">
+          A real model, ready to use. No key to paste: it runs through Kernel Axiom's own connection.
+        </p>
+      ) : provider === "demo" ? (
         <p className="text-sm text-muted-foreground">
           Runs a simulated agent so you can see every step, approval and orb state. No key needed.
         </p>

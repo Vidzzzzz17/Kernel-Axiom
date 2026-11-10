@@ -2,12 +2,21 @@ import type { ProviderKind, Settings } from "./types";
 import { secrets } from "./bridge";
 
 export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: string; model: string; needsKey: boolean }> = {
+  kernel: { label: "Kernel AI (built in)", baseUrl: "/api/kernel", model: "openai/gpt-6-astra", needsKey: false },
   demo: { label: "Demo (simulated)", baseUrl: "", model: "", needsKey: false },
   openai: { label: "OpenAI-compatible", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", needsKey: true },
   openrouter: { label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini", needsKey: true },
   together: { label: "Together", baseUrl: "https://api.together.xyz/v1", model: "meta-llama/Llama-3.3-70B-Instruct-Turbo", needsKey: true },
   ollama: { label: "Local (Ollama)", baseUrl: "http://localhost:11434/v1", model: "llama3.1", needsKey: false },
 };
+
+/** Relative bases (the built-in provider) need the web host when running inside the desktop app. */
+export function resolveBase(base: string) {
+  const b = base.replace(/\/$/, "");
+  if (!b.startsWith("/")) return b;
+  const remote = (import.meta.env["VITE_KERNEL_REMOTE_URL"] as string | undefined) ?? "";
+  return typeof window !== "undefined" && window.location.protocol === "app:" ? remote.replace(/\/$/, "") + b : b;
+}
 
 export const apiKeyName = (p: ProviderKind) => `apiKey:${p}`;
 
@@ -25,6 +34,12 @@ export interface ToolCall {
 export interface ToolDef {
   type: "function";
   function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
+export class ModelError extends Error {
+  constructor(message: string, public status?: number) {
+    super(status === 402 ? "AI credits are used up for this workspace. Add credits to keep going." : status === 429 ? "Too many requests right now. Wait a moment and try again." : message);
+  }
 }
 
 export interface StreamResult {
@@ -48,6 +63,7 @@ export async function streamChat(opts: {
   tools?: ToolDef[];
   signal?: AbortSignal;
   onToken: (delta: string) => void;
+  onReasoning?: (delta: string) => void;
 }): Promise<StreamResult> {
   const { settings } = opts;
   const preset = PROVIDER_PRESETS[settings.provider];
@@ -58,7 +74,7 @@ export async function streamChat(opts: {
   if (key) headers["Authorization"] = `Bearer ${key}`;
   if (settings.provider === "openrouter") headers["X-Title"] = "Kernel Axiom";
 
-  const res = await fetch(`${(settings.baseUrl || preset.baseUrl).replace(/\/$/, "")}/chat/completions`, {
+  const res = await fetch(`${resolveBase(settings.baseUrl || preset.baseUrl)}/chat/completions`, {
     method: "POST",
     headers,
     signal: opts.signal ?? null,
@@ -71,7 +87,7 @@ export async function streamChat(opts: {
   });
   if (!res.ok || !res.body) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Provider error ${res.status}: ${body.slice(0, 200)}`);
+    throw new ModelError(`Provider error ${res.status}: ${body.slice(0, 200)}`, res.status);
   }
 
   const reader = res.body.getReader();
@@ -93,7 +109,9 @@ export async function streamChat(opts: {
       if (data === "[DONE]") continue;
       try {
         const json = JSON.parse(data);
+        if (json.error) throw new ModelError(json.error.message ?? "Model error", json.error.status);
         const delta = json.choices?.[0]?.delta ?? {};
+        if (delta.reasoning) opts.onReasoning?.(delta.reasoning);
         if (delta.content) {
           text += delta.content;
           opts.onToken(delta.content);
@@ -105,7 +123,8 @@ export async function streamChat(opts: {
           if (tc.function?.name) calls[i].function.name += tc.function.name;
           if (tc.function?.arguments) calls[i].function.arguments += tc.function.arguments;
         }
-      } catch {
+      } catch (e) {
+        if (e instanceof ModelError) throw e;
         /* partial frame; ignore */
       }
     }

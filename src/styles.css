@@ -256,3 +256,17 @@
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   .shimmer-text { color: var(--muted-foreground); background: none; }
 }
+
+/* ---------- extra motion ---------- */
+@keyframes caret { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+@keyframes halo { 0%,100% { transform: scale(1); opacity: .35; } 50% { transform: scale(1.35); opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@utility caret {
+  &::after { content: ""; display: inline-block; width: .5em; height: 1em; margin-left: 2px; vertical-align: -0.15em; background: var(--foreground); border-radius: 2px; animation: caret 1s steps(1) infinite; }
+}
+@utility orb-halo {
+  position: relative;
+  &::before { content: ""; position: absolute; inset: -6px; border-radius: 9999px; border: 1px solid var(--slate); animation: halo 2s ease-out infinite; }
+}
+@utility rise-in { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
+.orb[data-follow] .orb-eyes { transform: translate(var(--ex, 0), var(--ey, 0)); transition: transform .25s ease-out; animation: none; }

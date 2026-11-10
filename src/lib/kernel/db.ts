@@ -22,7 +22,7 @@ export const db = new KernelDB();
 export const DEFAULT_SETTINGS: Settings = {
   id: "settings",
   onboarded: false,
-  provider: "demo",
+  provider: "kernel",
   baseUrl: "",
   model: "",
 };
