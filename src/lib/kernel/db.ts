@@ -41,6 +41,20 @@ export const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
+export async function deleteTask(id: string) {
+  await db.transaction("rw", [db.tasks, db.messages], async () => {
+    await db.messages.where("taskId").equals(id).delete();
+    await db.tasks.delete(id);
+  });
+}
+
+export async function deleteAllChats() {
+  await db.transaction("rw", [db.tasks, db.messages], async () => {
+    await db.messages.clear();
+    await db.tasks.clear();
+  });
+}
+
 export async function writeMemory(path: string, content: string) {
   const existing = await db.memory.where("path").equals(path).first();
   await db.memory.put({ id: existing?.id ?? uid(), path, content, updatedAt: Date.now() });
