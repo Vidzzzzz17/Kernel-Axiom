@@ -55,13 +55,13 @@ export async function streamChat(opts: {
   if (preset.needsKey && !key) throw new Error("No API key set for this provider. Add it in Settings.");
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (key) headers.Authorization = `Bearer ${key}`;
+  if (key) headers["Authorization"] = `Bearer ${key}`;
   if (settings.provider === "openrouter") headers["X-Title"] = "Kernel Axiom";
 
   const res = await fetch(`${(settings.baseUrl || preset.baseUrl).replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers,
-    signal: opts.signal,
+    signal: opts.signal ?? null,
     body: JSON.stringify({
       model: settings.model || preset.model,
       messages: opts.messages,

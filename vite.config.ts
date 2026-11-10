@@ -15,6 +15,6 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
     // Desktop build only: emit a static SPA shell (dist/client/_shell.html) for Electron to load.
-    ...(process.env.KERNEL_ELECTRON ? { spa: { enabled: true } } : {}),
+    ...(process.env["KERNEL_ELECTRON"] ? { spa: { enabled: true } } : {}),
   },
 });
