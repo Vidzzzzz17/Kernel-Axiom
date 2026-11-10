@@ -1,0 +1,28 @@
+appId: com.kernelaxiom.app
+productName: Kernel Axiom
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/client/**
+  - dist-electron/**
+  - build/icon.png
+  - build/tray.png
+  - package.json
+extraMetadata:
+  main: dist-electron/main.cjs
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Kernel Axiom
+publish:
+  provider: github
+  owner: YOUR_GITHUB_USER   # placeholder: set to your GitHub account
+  repo: kernel-axiom        # placeholder: set to your repository

@@ -1,5 +1,5 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "kernel-axiom",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "electron:compile": "node scripts/electron.mjs compile",
+    "electron:dev": "node scripts/electron.mjs dev",
+    "electron:build": "node scripts/electron.mjs build"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -53,9 +56,13 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "electron-updater": "^6.8.11",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
+    "motion": "^14.10.1",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
@@ -79,6 +86,9 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
@@ -92,5 +102,9 @@
     "typescript-eslint": "^8.56.1",
     "vite": "8.1.5",
     "vitest": "^4.1.10"
-  }
+  },
+  "productName": "Kernel Axiom",
+  "version": "0.1.0",
+  "description": "Kernel Axiom desktop agent",
+  "author": "Kernel Axiom"
 }
