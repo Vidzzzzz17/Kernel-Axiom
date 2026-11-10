@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Menu, PanelRight, X } from "lucide-react";
 import ReactMarkdownLite from "./MessageText";
-import { db, DEFAULT_SETTINGS, saveSettings, uid } from "@/lib/kernel/db";
+import { db, DEFAULT_SETTINGS, deleteTask, saveSettings, uid } from "@/lib/kernel/db";
 import { runAgent } from "@/lib/kernel/agent";
 import type { ApprovalRecord, ApprovalRequest, ChatMessage, OrbState, Step, WorkspaceView } from "@/lib/kernel/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -183,6 +183,11 @@ export function KernelApp() {
     setRun((r) => (r ? { ...r, orb: "paused", label: "Paused, you have control" } : r));
     abortRef.current?.abort();
   };
+  const removeTask = async (id: string) => {
+    if (run?.taskId === id) stop();
+    if (activeId === id) setActiveId(null);
+    await deleteTask(id);
+  };
   const newTask = () => {
     if (running) stop();
     setActiveId(null);
@@ -205,7 +210,8 @@ export function KernelApp() {
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         {/* Sidebar */}
         <div className="hidden md:block">
-          <Sidebar tasks={tasks} activeId={activeId} onSelect={setActiveId} onNew={newTask} onSettings={() => setSettingsOpen("Model")} />
+          <Sidebar tasks={tasks} activeId={activeId} onSelect={setActiveId} onNew={newTask} onSettings={() => setSettingsOpen("Model")}
+                  onDelete={removeTask} />
         </div>
         <AnimatePresence>
           {navOpen && (
@@ -220,6 +226,7 @@ export function KernelApp() {
                   }}
                   onNew={newTask}
                   onSettings={() => setSettingsOpen("Model")}
+                  onDelete={removeTask}
                 />
               </motion.div>
             </motion.div>

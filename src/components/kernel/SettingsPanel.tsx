@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
-import { db, exportAll, importAll, saveSettings } from "@/lib/kernel/db";
+import { db, deleteAllChats, exportAll, importAll, saveSettings } from "@/lib/kernel/db";
 import { ORB_STATES, type Settings } from "@/lib/kernel/types";
 import { cn } from "@/lib/utils";
 import { Orb } from "./Orb";
@@ -100,6 +100,16 @@ export function SettingsPanel({ settings, onClose, initialTab = "Model" }: { set
                   Export data
                 </KButton>
                 <KButton onClick={() => fileRef.current?.click()}>Import data</KButton>
+                <KButton
+                  variant="ghost"
+                  onClick={async () => {
+                    if (!confirm("Delete all chats? Notes and memory are kept. This can't be undone.")) return;
+                    await deleteAllChats();
+                    setMsg("All chats deleted.");
+                  }}
+                >
+                  Delete all chats
+                </KButton>
                 <input
                   ref={fileRef}
                   type="file"
