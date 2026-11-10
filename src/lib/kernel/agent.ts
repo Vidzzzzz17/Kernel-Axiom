@@ -265,10 +265,10 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
         emit({ type: "workspace", patch: { url: "search: " + query, status: "Searching", readingLine: -1 } });
         const step = st.start("Searching the web", query.slice(0, 60));
         const res = await fetch(`${resolveBase("/api/kernel")}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }), signal });
-        const j = (await res.json()) as { results?: { title: string; url: string; snippet: string }[]; error?: string };
-        const n = j.results?.length ?? 0;
-        st.finish(step, { title: n ? `Searched the web · ${n} results` : "Search found nothing", status: n ? "done" : "failed" });
-        return j.error ? `Error: ${j.error}` : (j.results ?? []).map((r, i) => `${i + 1}. ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n") || "No results.";
+        const j = (await res.json()) as { text?: string; urls?: string[]; error?: string };
+        const n = j.urls?.length ?? 0;
+        st.finish(step, { title: j.error ? "Search failed" : `Searched the web · ${n} sources`, status: j.error ? "failed" : "done" });
+        return j.error ? `Error: ${j.error}` : j.text || "No results.";
       }
       case "open_url": {
         const url = s(a["url"]);
