@@ -8,7 +8,7 @@ interface Props {
   onSend: (text: string) => void;
   onStop?: () => void;
   onVoice?: () => void;
-  placeholder?: string;
+  placeholder?: string | undefined;
   hint?: boolean;
   className?: string;
 }

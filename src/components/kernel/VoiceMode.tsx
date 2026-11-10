@@ -43,8 +43,9 @@ export function VoiceMode({
   // listen
   useEffect(() => {
     if (!supported || muted || running) return;
-    const Ctor = (window as unknown as Record<string, new () => SR>).SpeechRecognition ??
-      (window as unknown as Record<string, new () => SR>).webkitSpeechRecognition;
+    const w = window as unknown as Record<string, (new () => SR) | undefined>;
+    const Ctor = w["SpeechRecognition"] ?? w["webkitSpeechRecognition"];
+    if (!Ctor) return;
     const rec = new Ctor();
     rec.continuous = false;
     rec.interimResults = true;
@@ -53,6 +54,7 @@ export function VoiceMode({
       let tmp = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
+        if (!r) continue;
         if (r.isFinal) acc += r[0].transcript;
         else tmp += r[0].transcript;
       }

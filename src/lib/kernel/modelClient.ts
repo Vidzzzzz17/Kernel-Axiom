@@ -13,7 +13,7 @@ export const apiKeyName = (p: ProviderKind) => `apiKey:${p}`;
 
 export type WireMessage =
   | { role: "system" | "user"; content: string }
-  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] | undefined }
   | { role: "tool"; tool_call_id: string; content: string };
 
 export interface ToolCall {

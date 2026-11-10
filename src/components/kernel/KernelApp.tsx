@@ -383,8 +383,8 @@ function AssistantBlock({
   steps: Step[];
   text: string;
   approvals: ApprovalRecord[];
-  startedAt?: number;
-  live?: boolean;
+  startedAt?: number | undefined;
+  live?: boolean | undefined;
   pending?: { req: ApprovalRequest; resolve: (ok: boolean) => void } | null;
 }) {
   return (

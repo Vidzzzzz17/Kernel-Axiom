@@ -188,9 +188,9 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
     if (!res.toolCalls.length) break;
 
     for (const call of res.toolCalls) {
-      let args: Record<string, string> = {};
+      let args: { path: string; content: string; language: string; code: string } = { path: "", content: "", language: "", code: "" };
       try {
-        args = JSON.parse(call.function.arguments || "{}");
+        args = { ...args, ...JSON.parse(call.function.arguments || "{}") };
       } catch {
         /* leave empty */
       }

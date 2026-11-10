@@ -29,10 +29,10 @@ export type StepStatus = "pending" | "running" | "done" | "failed";
 export interface Step {
   id: string;
   title: string;
-  detail?: string;
+  detail?: string | undefined;
   status: StepStatus;
-  startedAt?: number;
-  endedAt?: number;
+  startedAt?: number | undefined;
+  endedAt?: number | undefined;
 }
 
 export interface ApprovalRequest {

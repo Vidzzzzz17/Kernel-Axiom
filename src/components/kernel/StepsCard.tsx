@@ -15,7 +15,7 @@ function useNow(active: boolean) {
   return now;
 }
 
-export function StepsCard({ steps, startedAt, live, compact }: { steps: Step[]; startedAt?: number; live?: boolean; compact?: boolean }) {
+export function StepsCard({ steps, startedAt, live, compact }: { steps: Step[]; startedAt?: number | undefined; live?: boolean | undefined; compact?: boolean }) {
   const [open, setOpen] = useState(true);
   const now = useNow(!!live);
   const done = steps.filter((s) => s.status === "done").length;
