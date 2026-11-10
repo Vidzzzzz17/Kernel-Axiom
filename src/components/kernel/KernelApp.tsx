@@ -41,7 +41,8 @@ interface RunState {
 const EMPTY_VIEW: WorkspaceView = { url: "", readingLine: -1, code: "", status: "" };
 
 export function KernelApp() {
-  const settings = useLiveQuery(() => db.settings.get("settings"), []) ;
+  // undefined only while loading; a missing row means first launch.
+  const settings = useLiveQuery(async () => (await db.settings.get("settings")) ?? DEFAULT_SETTINGS, []);
   const tasks = useLiveQuery(() => db.tasks.orderBy("updatedAt").reverse().toArray(), []) ?? [];
   const notes = useLiveQuery(() => db.memory.orderBy("updatedAt").reverse().toArray(), []) ?? [];
   const [activeId, setActiveId] = useState<string | null>(null);
