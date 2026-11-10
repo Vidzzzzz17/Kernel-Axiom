@@ -1,5 +1,5 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "kernel-axiom",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "electron:compile": "node scripts/electron.mjs compile",
+    "electron:dev": "node scripts/electron.mjs dev",
+    "electron:build": "node scripts/electron.mjs build"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -85,6 +88,7 @@
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
@@ -98,5 +102,9 @@
     "typescript-eslint": "^8.56.1",
     "vite": "8.1.5",
     "vitest": "^4.1.10"
-  }
+  },
+  "productName": "Kernel Axiom",
+  "version": "0.1.0",
+  "description": "Kernel Axiom desktop agent",
+  "author": "Kernel Axiom"
 }
