@@ -31,7 +31,7 @@ use the editor.
 
 ## Project rules
 - Kernel Axiom is single-user and local-first: data lives in IndexedDB via Dexie (`src/lib/kernel/db.ts`); no Lovable Cloud, no accounts. Why: the user wants no login and all data on-device.
-- All agent work goes through `runAgent()` (`src/lib/kernel/agent.ts`) and model calls through `src/lib/kernel/modelClient.ts` (OpenAI-compatible, user-supplied key, called from the client). Why: providers must be swappable without UI changes.
+- All agent work goes through `runAgent()` (`src/lib/kernel/agent.ts`); model calls go through `src/lib/kernel/modelClient.ts` speaking OpenAI chat-completions SSE. The built-in "kernel" provider hits `/api/kernel/chat/completions`, which translates to the Lovable AI Gateway Responses API server-side (tools declared without execute; the client runs them after approval). Why: providers stay swappable and the gateway key never reaches the browser.
 - Risky tools (file writes, code runs, sending data) must call `requestApproval` before executing. Why: approval-first is a core product promise.
 - API keys go only through `secrets` in `src/lib/kernel/bridge.ts` (Electron safeStorage, else memory); never localStorage/IndexedDB. Why: keys must not be stored in plain text.
 - Electron lives in `electron/`, bundled by `scripts/electron.mjs`; the desktop build sets `KERNEL_ELECTRON=1` to emit an SPA shell served via the `app://` protocol. Why: keeps the desktop build isolated from the web deploy.
