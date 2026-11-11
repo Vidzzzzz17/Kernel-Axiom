@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { Download, Plus, Settings as Cog, Trash2 } from "lucide-react";
 import type { Task } from "@/lib/kernel/types";
 import { cn } from "@/lib/utils";
-import { Orb } from "./Orb";
 import kernelLogo from "@/assets/kernel-logo.png";
 import { KButton } from "./ui";
 
