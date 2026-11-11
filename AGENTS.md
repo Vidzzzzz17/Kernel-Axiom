@@ -36,3 +36,4 @@ use the editor.
 - API keys go only through `secrets` in `src/lib/kernel/bridge.ts` (Electron safeStorage, else memory); never localStorage/IndexedDB. Why: keys must not be stored in plain text.
 - Electron lives in `electron/`, bundled by `scripts/electron.mjs`; the desktop build sets `KERNEL_ELECTRON=1` to emit an SPA shell served via the `app://` protocol. Why: keeps the desktop build isolated from the web deploy.
 - Orb visuals are pure CSS in `src/styles.css` (`.orb[data-state]`); states change only eyes/posture. Why: brand rule.
+- Desktop file/command tools live in `electron/workspace.ts` (tested by `electron/workspace.test.ts`); the Windows download is an `@electron/packager` zip uploaded as a Lovable asset (`src/assets/downloads/*.asset.json`) and linked from `/download`. Why: electron-builder installers can't be built in the sandbox, and the safe-folder rules must stay testable.
