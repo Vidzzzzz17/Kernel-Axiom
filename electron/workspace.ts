@@ -23,9 +23,9 @@ export function resolveInWorkspace(root: string | null, rel: string) {
 }
 
 export type RunResult = { stdout: string; stderr: string; code: number };
-export function runProcess(cmd: string, args: string[] | null, cwd: string, timeout: number): Promise<RunResult> {
+export function runProcess(cmd: string, args: string[] | null, cwd: string, timeout: number, extraEnv: Record<string, string> = {}): Promise<RunResult> {
   return new Promise((resolve) => {
-    const p = args ? spawn(cmd, args, { cwd, timeout, windowsHide: true }) : spawn(cmd, { cwd, shell: true, timeout, windowsHide: true });
+    const p = args ? spawn(cmd, args, { cwd, timeout, windowsHide: true, env: { ...process.env, ...extraEnv } }) : spawn(cmd, { cwd, shell: true, timeout, windowsHide: true });
     let stdout = "", stderr = "";
     p.stdout?.on("data", (d) => (stdout += d));
     p.stderr?.on("data", (d) => (stderr += d));
@@ -49,9 +49,8 @@ export const workspaceApi = (getRoot: () => string | null) => ({
   run: (code: string, lang: string) => {
     const py = /py/i.test(lang);
     const cmd = py ? (process.platform === "win32" ? "python" : "python3") : process.execPath;
-    const env = py ? undefined : "node";
-    void env;
-    return runProcess(cmd, [py ? "-c" : "-e", code], resolveInWorkspace(getRoot(), "."), 60_000);
+    // JS runs on the app's own runtime, so Node does not need to be installed separately.
+    return runProcess(cmd, [py ? "-c" : "-e", String(code)], resolveInWorkspace(getRoot(), "."), 60_000, py ? {} : { ELECTRON_RUN_AS_NODE: "1" });
   },
   cmd: (command: string) => runProcess(command, null, resolveInWorkspace(getRoot(), "."), 120_000),
 });
