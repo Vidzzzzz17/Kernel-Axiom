@@ -1,9 +1,9 @@
 import { app, BrowserWindow, Menu, Tray, globalShortcut, ipcMain, nativeImage, net, protocol, safeStorage, shell, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { workspaceApi } from "./workspace";
 
 const DEV_URL = process.env.KERNEL_DEV_URL ?? "http://localhost:8080";
 const isDev = !app.isPackaged;
@@ -146,54 +146,26 @@ ipcMain.handle("secrets:set", (_e, name: string, value: string) => {
   fs.writeFileSync(secretsFile(), JSON.stringify(all));
 });
 
-/** Resolve a path and refuse anything outside the user-chosen workspace folder. */
-function inWorkspace(rel: string) {
-  if (!workspaceRoot) throw new Error("Choose a workspace folder first.");
-  const full = path.resolve(workspaceRoot, rel);
-  if (full !== workspaceRoot && !full.startsWith(workspaceRoot + path.sep)) throw new Error("Path is outside the workspace.");
-  return full;
+const wsFile = () => path.join(userData(), "workspace.json");
+try {
+  const saved = JSON.parse(fs.readFileSync(wsFile(), "utf8")).root;
+  if (saved && fs.existsSync(saved)) workspaceRoot = saved;
+} catch {
+  /* none saved */
 }
+const ws = workspaceApi(() => workspaceRoot);
 
 ipcMain.handle("ws:choose", async () => {
   const r = await dialog.showOpenDialog(win!, { properties: ["openDirectory", "createDirectory"] });
-  workspaceRoot = r.canceled ? workspaceRoot : path.resolve(r.filePaths[0]);
+  if (!r.canceled) {
+    workspaceRoot = path.resolve(r.filePaths[0]);
+    fs.writeFileSync(wsFile(), JSON.stringify({ root: workspaceRoot }));
+  }
   return workspaceRoot;
 });
-ipcMain.handle("ws:read", (_e, rel: string) => fs.promises.readFile(inWorkspace(rel), "utf8"));
-ipcMain.handle("ws:write", async (_e, rel: string, content: string) => {
-  const full = inWorkspace(rel);
-  await fs.promises.mkdir(path.dirname(full), { recursive: true });
-  await fs.promises.writeFile(full, content, "utf8");
-});
-ipcMain.handle("ws:run", (_e, code: string, lang: string) => {
-  const cwd = inWorkspace(".");
-  const cmd = /py/i.test(lang) ? (process.platform === "win32" ? "python" : "python3") : "node";
-  const flag = cmd === "node" ? "-e" : "-c";
-  return new Promise((resolve) => {
-    const p = spawn(cmd, [flag, code], { cwd, timeout: 60_000, windowsHide: true });
-    let stdout = "";
-    let stderr = "";
-    p.stdout.on("data", (d) => (stdout += d));
-    p.stderr.on("data", (d) => (stderr += d));
-    p.on("close", (c) => resolve({ stdout, stderr, code: c ?? -1 }));
-    p.on("error", (err) => resolve({ stdout, stderr: String(err), code: -1 }));
-  });
-});
-
 ipcMain.handle("ws:root", () => workspaceRoot);
-ipcMain.handle("ws:list", async (_e, rel: string) => {
-  const entries = await fs.promises.readdir(inWorkspace(rel || "."), { withFileTypes: true });
-  return entries.slice(0, 500).map((d) => ({ name: d.name, dir: d.isDirectory() }));
-});
-ipcMain.handle("ws:cmd", (_e, command: string) => {
-  const cwd = inWorkspace(".");
-  return new Promise((resolve) => {
-    const p = spawn(command, { cwd, shell: true, timeout: 120_000, windowsHide: true });
-    let stdout = "";
-    let stderr = "";
-    p.stdout.on("data", (d) => (stdout += d));
-    p.stderr.on("data", (d) => (stderr += d));
-    p.on("close", (c) => resolve({ stdout: stdout.slice(-20000), stderr: stderr.slice(-8000), code: c ?? -1 }));
-    p.on("error", (err) => resolve({ stdout, stderr: String(err), code: -1 }));
-  });
-});
+ipcMain.handle("ws:read", (_e, rel: string) => ws.read(rel));
+ipcMain.handle("ws:write", (_e, rel: string, content: string) => ws.write(rel, content));
+ipcMain.handle("ws:list", (_e, rel: string) => ws.list(rel));
+ipcMain.handle("ws:run", (_e, code: string, lang: string) => ws.run(code, lang));
+ipcMain.handle("ws:cmd", (_e, command: string) => ws.cmd(command));
