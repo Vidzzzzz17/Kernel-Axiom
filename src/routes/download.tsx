@@ -6,8 +6,10 @@ import { Backdrop } from "@/components/kernel/Backdrop";
 import { Orb } from "@/components/kernel/Orb";
 import { KButton, spring } from "@/components/kernel/ui";
 
-/** Set to your GitHub repo once the release workflow has published an installer. */
-const RELEASES_URL = "https://github.com/YOUR_GITHUB_USER/kernel-axiom/releases/latest";
+import windowsBuild from "@/assets/downloads/KernelAxiom-Windows-x64.zip.asset.json";
+
+const WINDOWS_URL = windowsBuild.url;
+const WINDOWS_SIZE_MB = Math.round(windowsBuild.size / 1_000_000);
 
 export const Route = createFileRoute("/download")({
   head: () => ({
@@ -45,11 +47,11 @@ function DownloadPage() {
       title: "Desktop app",
       body: "Works on files and runs commands in a folder you choose. Tray icon, Ctrl+Space to summon.",
       action: (
-        <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/85">
-          Download for Windows
+        <a href={WINDOWS_URL} download="KernelAxiom-Windows-x64.zip" className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/85">
+          Download for Windows ({WINDOWS_SIZE_MB} MB)
         </a>
       ),
-      note: "Windows 10 and 11, 64-bit. SmartScreen may warn until the app is signed: choose More info, then Run anyway.",
+      note: "Windows 10 and 11, 64-bit. Unzip, then open Kernel Axiom.exe. SmartScreen may warn until the app is signed: choose More info, then Run anyway.",
     },
     {
       icon: Smartphone,
