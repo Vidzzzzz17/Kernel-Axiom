@@ -17,7 +17,7 @@ await build({
   platform: "node",
   format: "cjs",
   target: "node20",
-  external: ["electron", "electron-updater"],
+  external: ["electron"],
   outdir: "dist-electron",
   outExtension: { ".js": ".cjs" },
 });
