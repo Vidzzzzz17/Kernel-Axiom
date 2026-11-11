@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Download, Plus, Settings as Cog, Trash2 } from "lucide-react";
 import type { Task } from "@/lib/kernel/types";
 import { cn } from "@/lib/utils";
-import { Orb } from "./Orb";
+import kernelLogo from "@/assets/kernel-logo.png";
 import { KButton } from "./ui";
 
 export function Sidebar({
@@ -62,7 +62,7 @@ export function Sidebar({
   return (
     <aside className="glass flex h-full w-64 flex-col rounded-3xl p-3">
       <button onClick={onNew} className="flex min-h-11 items-center gap-2.5 px-2 text-xl tracking-tight">
-        <Orb size={24} state="idle" />
+        <img src={kernelLogo} alt="Kernel Axiom logo" width={24} height={24} className="rounded-md" />
         Kernel Axiom
       </button>
       <KButton onClick={onNew} className="mt-3 justify-start rounded-xl">
