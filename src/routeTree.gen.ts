@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadRouteImport } from './routes/download'
 import { Route as ApiKernelFetchRouteImport } from './routes/api/kernel/fetch'
 import { Route as ApiKernelSearchRouteImport } from './routes/api/kernel/search'
+import { Route as ApiOpensourceModelsRouteImport } from './routes/api/opensource/models'
 import { Route as ApiKernelChatCompletionsRouteImport } from './routes/api/kernel/chat/completions'
+import { Route as ApiOpensourceChatCompletionsRouteImport } from './routes/api/opensource/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,10 +37,21 @@ const ApiKernelSearchRoute = ApiKernelSearchRouteImport.update({
   path: '/api/kernel/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOpensourceModelsRoute = ApiOpensourceModelsRouteImport.update({
+  id: '/api/opensource/models',
+  path: '/api/opensource/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiKernelChatCompletionsRoute =
   ApiKernelChatCompletionsRouteImport.update({
     id: '/api/kernel/chat/completions',
     path: '/api/kernel/chat/completions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiOpensourceChatCompletionsRoute =
+  ApiOpensourceChatCompletionsRouteImport.update({
+    id: '/api/opensource/chat/completions',
+    path: '/api/opensource/chat/completions',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -47,14 +60,18 @@ export interface FileRoutesByFullPath {
   '/download': typeof DownloadRoute
   '/api/kernel/fetch': typeof ApiKernelFetchRoute
   '/api/kernel/search': typeof ApiKernelSearchRoute
+  '/api/opensource/models': typeof ApiOpensourceModelsRoute
   '/api/kernel/chat/completions': typeof ApiKernelChatCompletionsRoute
+  '/api/opensource/chat/completions': typeof ApiOpensourceChatCompletionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/download': typeof DownloadRoute
   '/api/kernel/fetch': typeof ApiKernelFetchRoute
   '/api/kernel/search': typeof ApiKernelSearchRoute
+  '/api/opensource/models': typeof ApiOpensourceModelsRoute
   '/api/kernel/chat/completions': typeof ApiKernelChatCompletionsRoute
+  '/api/opensource/chat/completions': typeof ApiOpensourceChatCompletionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,7 +79,9 @@ export interface FileRoutesById {
   '/download': typeof DownloadRoute
   '/api/kernel/fetch': typeof ApiKernelFetchRoute
   '/api/kernel/search': typeof ApiKernelSearchRoute
+  '/api/opensource/models': typeof ApiOpensourceModelsRoute
   '/api/kernel/chat/completions': typeof ApiKernelChatCompletionsRoute
+  '/api/opensource/chat/completions': typeof ApiOpensourceChatCompletionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,21 +90,27 @@ export interface FileRouteTypes {
     | '/download'
     | '/api/kernel/fetch'
     | '/api/kernel/search'
+    | '/api/opensource/models'
     | '/api/kernel/chat/completions'
+    | '/api/opensource/chat/completions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/download'
     | '/api/kernel/fetch'
     | '/api/kernel/search'
+    | '/api/opensource/models'
     | '/api/kernel/chat/completions'
+    | '/api/opensource/chat/completions'
   id:
     | '__root__'
     | '/'
     | '/download'
     | '/api/kernel/fetch'
     | '/api/kernel/search'
+    | '/api/opensource/models'
     | '/api/kernel/chat/completions'
+    | '/api/opensource/chat/completions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -93,7 +118,9 @@ export interface RootRouteChildren {
   DownloadRoute: typeof DownloadRoute
   ApiKernelFetchRoute: typeof ApiKernelFetchRoute
   ApiKernelSearchRoute: typeof ApiKernelSearchRoute
+  ApiOpensourceModelsRoute: typeof ApiOpensourceModelsRoute
   ApiKernelChatCompletionsRoute: typeof ApiKernelChatCompletionsRoute
+  ApiOpensourceChatCompletionsRoute: typeof ApiOpensourceChatCompletionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -126,11 +153,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiKernelSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/opensource/models': {
+      id: '/api/opensource/models'
+      path: '/api/opensource/models'
+      fullPath: '/api/opensource/models'
+      preLoaderRoute: typeof ApiOpensourceModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/kernel/chat/completions': {
       id: '/api/kernel/chat/completions'
       path: '/api/kernel/chat/completions'
       fullPath: '/api/kernel/chat/completions'
       preLoaderRoute: typeof ApiKernelChatCompletionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/opensource/chat/completions': {
+      id: '/api/opensource/chat/completions'
+      path: '/api/opensource/chat/completions'
+      fullPath: '/api/opensource/chat/completions'
+      preLoaderRoute: typeof ApiOpensourceChatCompletionsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -141,7 +182,9 @@ const rootRouteChildren: RootRouteChildren = {
   DownloadRoute: DownloadRoute,
   ApiKernelFetchRoute: ApiKernelFetchRoute,
   ApiKernelSearchRoute: ApiKernelSearchRoute,
+  ApiOpensourceModelsRoute: ApiOpensourceModelsRoute,
   ApiKernelChatCompletionsRoute: ApiKernelChatCompletionsRoute,
+  ApiOpensourceChatCompletionsRoute: ApiOpensourceChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
