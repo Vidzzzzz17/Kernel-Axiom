@@ -4,6 +4,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Menu, PanelRight, X } from "lucide-react";
 import ReactMarkdownLite from "./MessageText";
 import { db, DEFAULT_SETTINGS, deleteTask, saveSettings, uid } from "@/lib/kernel/db";
+import type { AgentMode } from "@/lib/kernel/modes";
+import { isDesktop } from "@/lib/kernel/bridge";
 import { runAgent } from "@/lib/kernel/agent";
 import type { ApprovalRecord, ApprovalRequest, ChatMessage, OrbState, Step, WorkspaceView } from "@/lib/kernel/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -22,11 +24,11 @@ import { ProviderForm } from "./ProviderForm";
 import { TitleBar } from "./TitleBar";
 import { IconButton, KButton, spring } from "./ui";
 
-const SUGGESTIONS = [
-  "Find the best open models for tool calling and save a shortlist",
-  "Summarise my notes into a one-page brief",
-  "Plan a launch checklist for next week",
-];
+const SUGGESTIONS: Record<AgentMode, string[]> = {
+  chat: ["Explain something complicated simply", "Help me think through an idea", "Write something worth reading"],
+  research: ["Compare local AI models with sources", "Research a topic and check the evidence", "Find the official docs for my project"],
+  computer: ["List my open windows", "Open Notepad and help me draft a note", "Summarise the files in my workspace"],
+};
 
 interface RunState {
   taskId: string;
@@ -67,6 +69,7 @@ export function KernelApp() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const mode = settings?.mode === "computer" || settings?.mode === "research" ? settings.mode : "chat";
   const running = !!run && !["done", "celebrating", "error", "paused"].includes(run.orb);
 
   // ticking clock while running
@@ -241,6 +244,9 @@ export function KernelApp() {
             </IconButton>
             <h1 className="truncate text-sm">{activeTask?.title ?? ""}</h1>
             <div className="ml-auto flex items-center gap-1">
+              <KButton variant="glass" onClick={() => setSettingsOpen("Model")} aria-label="Choose AI model">
+                {settings.model || "Choose model"}
+              </KButton>
               {activeId && !wsOpen && (
                 <IconButton label="Open workspace" variant="glass" onClick={() => setWsOpen(true)}>
                   <PanelRight className="size-4" aria-hidden />
@@ -256,9 +262,11 @@ export function KernelApp() {
             <div className="flex flex-1 flex-col items-center justify-center px-4 pb-10">
               <Orb size={isMobile ? 96 : 128} state={restOrb === "idle" ? "looking" : restOrb} follow={restOrb === "idle"} />
               <h2 className="rise-in mt-8 text-center text-4xl sm:text-5xl">What should we work on?</h2>
+              <ModePicker mode={mode} disabled={running} />
+              <p className="mt-3 text-xs text-muted-foreground">{mode === "computer" ? (isDesktop() ? "Windows apps · workspace files · approved commands" : "Computer controls require the Windows desktop app") : mode === "research" ? "Web research with sources" : "A conversation, without computer actions"}</p>
               <Composer ref={composerRef} className="mt-8 w-full max-w-2xl" onSend={send} onVoice={() => setVoiceOpen(true)} hint />
               <ul className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
-                {SUGGESTIONS.map((s) => (
+                {SUGGESTIONS[mode].map((s) => (
                   <li key={s}>
                     <KButton variant="glass" className="text-left text-xs sm:text-sm" onClick={() => send(s)}>
                       {s}
@@ -300,6 +308,7 @@ export function KernelApp() {
                 </div>
               </div>
               <div className={cn("mx-auto w-full pt-2", wsOpen ? "max-w-full" : "max-w-3xl")}>
+                <ModePicker mode={mode} disabled={running} />
                 <Composer
                   ref={composerRef}
                   running={running}
@@ -450,6 +459,20 @@ function Onboarding({ onDone }: { onDone: (p: Parameters<typeof saveSettings>[0]
           )}
         </AnimatePresence>
       </motion.div>
+    </div>
+  );
+}
+
+function ModePicker({ mode, disabled }: { mode: AgentMode; disabled: boolean }) {
+  return (
+    <div className="my-3 flex justify-center gap-1" role="group" aria-label="Assistant mode">
+      {(["chat", "research", "computer"] as const).map((value) => (
+        <button key={value} type="button" disabled={disabled} aria-pressed={mode === value}
+          onClick={() => void saveSettings({ mode: value })}
+          className={cn("rounded-full border px-4 py-2 text-sm capitalize transition-colors disabled:opacity-50", mode === value ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground")}>
+          {value}
+        </button>
+      ))}
     </div>
   );
 }

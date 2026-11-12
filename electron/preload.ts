@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("kernel", {
+  desktop: { action: (value: unknown) => ipcRenderer.invoke("desktop:action", value) },
   secrets: {
     get: (name: string) => ipcRenderer.invoke("secrets:get", name),
     set: (name: string, value: string) => ipcRenderer.invoke("secrets:set", name, value),

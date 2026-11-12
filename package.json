@@ -109,5 +109,6 @@
   "productName": "Kernel Axiom",
   "version": "0.1.0",
   "description": "Kernel Axiom desktop agent",
-  "author": "Kernel Axiom"
+  "author": "Kernel Axiom",
+  "main": "dist-electron/main.cjs"
 }

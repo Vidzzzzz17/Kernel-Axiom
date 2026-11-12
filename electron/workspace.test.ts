@@ -29,7 +29,7 @@ describe("desktop safe folder", () => {
   });
   it("runs JavaScript and shell commands inside the folder", async () => {
     const r = await ws.run("console.log(process.cwd())", "javascript");
-    expect(fs.realpathSync(r.stdout.trim())).toBe(fs.realpathSync(root));
+    expect(fs.realpathSync.native(r.stdout.trim())).toBe(fs.realpathSync.native(root));
     const c = await ws.cmd("echo hi");
     expect(c.stdout.trim()).toBe("hi");
   });

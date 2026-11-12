@@ -2,6 +2,7 @@ import type { AgentEvent, ApprovalRequest, ChatMessage, Settings, Step } from ".
 import { resolveBase, streamChat, type ToolDef, type WireMessage } from "./modelClient";
 import { db, uid, writeMemory } from "./db";
 import { isDesktop } from "./bridge";
+import { MODE_PROMPTS, toolAllowed } from "./modes";
 
 export interface RunAgentInput {
   prompt: string;
@@ -133,6 +134,11 @@ const fn = (name: string, description: string, properties: Record<string, unknow
 const str = { type: "string" };
 
 const TOOLS: ToolDef[] = [
+  fn("desktop_inspect", "Inspect Windows apps. Use window=0 to list open windows, then inspect a returned handle to get control IDs. This shares visible app text with the model after approval.", { window: { type: "integer", minimum: 0 } }, ["window"]),
+  fn("desktop_launch", "Launch notepad, calculator or explorer on Windows after approval.", { app: { type: "string", enum: ["notepad", "calculator", "explorer"] } }, ["app"]),
+  fn("desktop_click", "Invoke a button by its observed control ID. Inspect again to verify.", { window: { type: "integer" }, element: str }, ["window", "element"]),
+  fn("desktop_type", "Replace the value of an editable accessibility control with text. Password fields are blocked.", { window: { type: "integer" }, element: str, text: str }, ["window", "element", "text"]),
+  fn("desktop_key", "Send a keyboard shortcut to an observed window after approval.", { window: { type: "integer" }, key: { type: "string", enum: ["ENTER", "TAB", "ESC", "UP", "DOWN", "LEFT", "RIGHT", "CTRL+A", "CTRL+C", "CTRL+V", "CTRL+S"] } }, ["window", "key"]),
   fn("plan", "Share a short numbered plan before multi-step work. Call once at the start.", { steps: { type: "array", items: str } }, ["steps"]),
   fn("list_files", "List files in a folder of the user's workspace (desktop) or their saved notes (browser).", { dir: str }, ["dir"]),
   fn("read_file", "Read a text file from the workspace or notes.", { path: str }, ["path"]),
@@ -147,10 +153,8 @@ const TOOLS: ToolDef[] = [
   fn("remember", "Save a short fact about the user or their preferences to long-term memory. The user must approve.", { key: str, fact: str }, ["key", "fact"]),
 ];
 
-const SYSTEM = `You are Kernel Axiom, a calm, precise autonomous agent running on the user's own computer.
-Work agentically: for anything beyond a one-line answer, call "plan" first, then use tools step by step, check results, and keep going until the task is done. Prefer doing over asking.
-Tools: plan, web_search, fetch_url, list_files, read_file, write_file, run_command, open_url, copy_to_clipboard, share, notify, remember. For research, search first, then read 2-3 good results before answering, and cite URLs. Writes, commands and memory need the user's approval, which the app requests automatically; if denied, adapt and continue without it.
-When finished, reply with a short summary of what you did and where results are. Be concise, no emojis.`;
+const SYSTEM = `You are Kernel Axiom, a candid, helpful AI assistant. Be direct, thoughtful and conversational. Do not pretend to be Grok or claim access to its services.
+Use only the tools available in the current mode. When work is finished, describe what actually succeeded and any remaining limitations. Never report simulated actions as real.`;
 
 type Args = Record<string, unknown>;
 const s = (v: unknown) => (typeof v === "string" ? v : "");
@@ -164,9 +168,11 @@ async function ensureWorkspace() {
 async function runModel({ history, prompt, settings, signal, emit, requestApproval, takeSteer }: RunAgentInput) {
   const st = stepper(emit);
   const desktop = isDesktop() && !!window.kernel?.workspace;
+  const mode = settings.mode === "computer" || settings.mode === "research" ? settings.mode : "chat";
+  const availableTools = TOOLS.filter((t) => toolAllowed(mode, t.function.name, desktop));
   const memories = (await db.memory.where("path").startsWith("memory/").toArray()).map((m) => `- ${m.content}`).join("\n");
   const messages: WireMessage[] = [
-    { role: "system", content: SYSTEM + `\nEnvironment: ${desktop ? "desktop app with a real workspace folder" : "web browser; files are the user's saved notes, run_command is unavailable"}.` + (memories ? `\nKnown about the user:\n${memories}` : "") },
+    { role: "system", content: SYSTEM + "\n" + MODE_PROMPTS[mode] + `\nEnvironment: ${desktop ? "desktop app with a real workspace folder" : "web browser; files are the user's saved notes, run_command is unavailable"}.` + (memories ? `\nKnown about the user:\n${memories}` : "") },
     ...history.map((m) => ({ role: m.role, content: m.content }) as WireMessage),
     { role: "user", content: prompt },
   ];
@@ -174,12 +180,38 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
   const approve = async (req: Omit<ApprovalRequest, "id">) => {
     emit({ type: "status", orb: "needs-approval", label: "Waiting for you" });
     const full = { ...req, id: uid() };
+    signal.throwIfAborted();
     const ok = await requestApproval(full);
+    signal.throwIfAborted();
     emit({ type: "approval-result", record: { ...full, decision: ok ? "allowed" : "denied" } });
     return ok;
   };
 
   const exec = async (name: string, a: Args): Promise<string> => {
+    signal.throwIfAborted();
+    if (!availableTools.some((t) => t.function.name === name)) return "This tool is unavailable in the current mode.";
+    if (name.startsWith("desktop_")) {
+      if (!window.kernel?.desktop) return "Install the updated Windows desktop app to use computer controls.";
+      const action = name.slice("desktop_".length);
+      if (!(await approve({
+        kind: action === "inspect" ? "send-data" : "run-code",
+        title: action === "inspect" ? "Read visible app text and send it to your model" : "Control a Windows app",
+        preview: JSON.stringify({ action, ...a }, null, 2),
+      }))) return "The user denied this desktop action.";
+      const step = st.start(action === "inspect" ? "Inspecting Windows apps" : "Controlling a Windows app", action);
+      try {
+        signal.throwIfAborted();
+        const result = await window.kernel.desktop.action({ ...a, action });
+        signal.throwIfAborted();
+        emit({ type: "workspace", patch: { code: result, status: "Computer" } });
+        st.finish(step, { title: "Desktop result received" });
+        return result;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        st.finish(step, { title: "Desktop action failed", status: "failed" });
+        return "Error: " + (error as Error).message;
+      }
+    }
     switch (name) {
       case "plan": {
         const steps = Array.isArray(a["steps"]) ? (a["steps"] as string[]) : [];
@@ -323,14 +355,16 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
     }
   };
 
+  let completed = false;
   for (let turn = 0; turn < 24; turn++) {
+    signal.throwIfAborted();
     for (const note of takeSteer()) messages.push({ role: "user", content: `(Steering note from the user, mid-task) ${note}` });
     emit({ type: "status", orb: "thinking", label: "Thinking" });
     let wrote = false;
     const res = await streamChat({
       settings,
       messages,
-      tools: TOOLS,
+      tools: availableTools,
       signal,
       onToken: (d) => {
         if (!wrote) emit({ type: "status", orb: "speaking", label: "Writing" });
@@ -340,7 +374,7 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
     });
     if (res.text) emit({ type: "text", delta: "\n\n" });
     messages.push({ role: "assistant", content: res.text || null, tool_calls: res.toolCalls.length ? res.toolCalls : undefined });
-    if (!res.toolCalls.length) break;
+    if (!res.toolCalls.length) { completed = true; break; }
     for (const call of res.toolCalls) {
       let args: Args = {};
       try {
@@ -348,9 +382,19 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
       } catch {
         /* empty */
       }
-      const result = await exec(call.function.name, args);
+      signal.throwIfAborted();
+      let result: string;
+      try { result = await exec(call.function.name, args); }
+      catch (error) {
+        if (signal.aborted) throw error;
+        result = "Tool failed: " + (error as Error).message;
+      }
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
     }
   }
-  emit({ type: "status", orb: "celebrating", label: "Done" });
+  signal.throwIfAborted();
+  if (!completed) {
+    emit({ type: "text", delta: "\n\nReached the 24-step limit. The task may be incomplete; ask me to continue." });
+    emit({ type: "status", orb: "paused", label: "Step limit reached" });
+  } else emit({ type: "status", orb: "celebrating", label: "Done" });
 }

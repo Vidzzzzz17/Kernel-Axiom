@@ -15,7 +15,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  icon: build/icon.ico
+  icon: build/icon.png
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
@@ -24,5 +24,5 @@ nsis:
   shortcutName: Kernel Axiom
 publish:
   provider: github
-  owner: YOUR_GITHUB_USER   # placeholder: set to your GitHub account
-  repo: kernel-axiom        # placeholder: set to your repository
+  owner: Vidzzzzz17
+  repo: Kernel-Axiom

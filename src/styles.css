@@ -270,3 +270,15 @@
 }
 @utility rise-in { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
 .orb[data-follow] .orb-eyes { transform: translate(var(--ex, 0), var(--ey, 0)); transition: transform .25s ease-out; animation: none; }
+
+/* The animated bot keeps its states on a tan app tile. */
+.orb { isolation: isolate; background: transparent; }
+.orb::before {
+  content: ""; position: absolute; inset: 0; z-index: -2;
+  border-radius: 30%; background: linear-gradient(145deg, oklch(0.82 0.025 70), oklch(0.65 0.035 65));
+}
+.orb::after {
+  content: ""; position: absolute; inset: 0 4% 7% 0; z-index: -1;
+  border-radius: 34% 51% 50% 40%;
+  background: radial-gradient(circle at 55% 58%, oklch(0.58 0.22 255), oklch(0.72 0.15 245) 46%, oklch(0.90 0.07 230));
+}
