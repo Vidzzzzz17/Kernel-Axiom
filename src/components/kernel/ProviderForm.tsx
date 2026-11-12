@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PROVIDER_PRESETS, apiKeyName, listOllamaModels } from "@/lib/kernel/modelClient";
+import { PROVIDER_PRESETS, apiKeyName, listOllamaModels, listOpenSourceModels } from "@/lib/kernel/modelClient";
 import { secrets, isDesktop } from "@/lib/kernel/bridge";
 import type { ProviderKind, Settings } from "@/lib/kernel/types";
 import { cn } from "@/lib/utils";
@@ -33,11 +33,15 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
   const loadModels = async () => {
     setModelErr("");
     try {
-      const m = await listOllamaModels(baseUrl);
+      const m = provider === "opensource" ? await listOpenSourceModels() : await listOllamaModels(baseUrl);
       setModels(m);
       if (m[0] && !m.includes(model)) setModel(m[0]);
     } catch {
-      setModelErr("Couldn't reach Ollama. Is it running, with OLLAMA_ORIGINS allowing this app?");
+      setModelErr(
+        provider === "opensource"
+          ? "Couldn't reach the open-source model list. Check your connection and try again."
+          : "Couldn't reach Ollama. Is it running, with OLLAMA_ORIGINS allowing this app?",
+      );
     }
   };
 
@@ -80,6 +84,12 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
         </p>
       ) : (
         <>
+          {provider === "opensource" && (
+            <p className="text-sm text-muted-foreground">
+              An open-source model (GPT-OSS), free, no key and no account. The free tier allows roughly one reply every
+              45 seconds, so longer tasks take longer.
+            </p>
+          )}
           <label className="block">
             <span className="label-mono text-muted-foreground">Base URL</span>
             <input className={cn(field, "mt-1.5 font-mono text-xs")} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
@@ -96,7 +106,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
               ) : (
                 <input className={cn(field, "font-mono text-xs")} value={model} onChange={(e) => setModel(e.target.value)} />
               )}
-              {provider === "ollama" && (
+              {(provider === "ollama" || provider === "opensource") && (
                 <KButton type="button" className="shrink-0 rounded-xl" onClick={loadModels}>
                   Find models
                 </KButton>

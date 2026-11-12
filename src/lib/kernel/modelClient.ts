@@ -2,6 +2,7 @@ import type { ProviderKind, Settings } from "./types";
 import { secrets } from "./bridge";
 
 export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: string; model: string; needsKey: boolean }> = {
+  opensource: { label: "Open source (free)", baseUrl: "/api/opensource", model: "openai-fast", needsKey: false },
   kernel: { label: "Kernel AI (built in)", baseUrl: "/api/kernel", model: "openai/gpt-6-astra", needsKey: false },
   demo: { label: "Demo (simulated)", baseUrl: "", model: "", needsKey: false },
   openai: { label: "OpenAI-compatible", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", needsKey: true },
@@ -36,15 +37,33 @@ export interface ToolDef {
   function: { name: string; description: string; parameters: Record<string, unknown> };
 }
 
+/** Turn a raw provider failure into something the user can act on. */
+export function friendlyMessage(provider: ProviderKind, status: number | undefined, raw: string): string {
+  if (provider === "opensource" && (status === 402 || status === 429)) {
+    return "The free open-source model is rate limited (about one reply every 45 seconds). Wait a moment and try again, or pick Kernel AI in Settings for replies without waits.";
+  }
+  if (status === 402) return "AI credits are used up for this workspace. Add credits to keep going.";
+  if (status === 429) return "Too many requests right now. Wait a moment and try again.";
+  return raw;
+}
+
 export class ModelError extends Error {
   constructor(message: string, public status?: number) {
-    super(status === 402 ? "AI credits are used up for this workspace. Add credits to keep going." : status === 429 ? "Too many requests right now. Wait a moment and try again." : message);
+    super(message);
   }
 }
 
 export interface StreamResult {
   text: string;
   toolCalls: ToolCall[];
+}
+
+/** List the free open-source models (our own /api/opensource/models bridge). */
+export async function listOpenSourceModels(): Promise<string[]> {
+  const res = await fetch(`${resolveBase("/api/opensource")}/models`);
+  if (!res.ok) throw new Error(`Open-source model list answered ${res.status}`);
+  const json = (await res.json()) as { models?: string[] };
+  return json.models ?? [];
 }
 
 /** List local Ollama models (uses the native /api/tags endpoint). */
@@ -87,7 +106,7 @@ export async function streamChat(opts: {
   });
   if (!res.ok || !res.body) {
     const body = await res.text().catch(() => "");
-    throw new ModelError(`Provider error ${res.status}: ${body.slice(0, 200)}`, res.status);
+    throw new ModelError(friendlyMessage(settings.provider, res.status, `Provider error ${res.status}: ${body.slice(0, 200)}`), res.status);
   }
 
   const reader = res.body.getReader();
@@ -109,7 +128,7 @@ export async function streamChat(opts: {
       if (data === "[DONE]") continue;
       try {
         const json = JSON.parse(data);
-        if (json.error) throw new ModelError(json.error.message ?? "Model error", json.error.status);
+        if (json.error) throw new ModelError(friendlyMessage(settings.provider, json.error.status, json.error.message ?? "Model error"), json.error.status);
         const delta = json.choices?.[0]?.delta ?? {};
         if (delta.reasoning) opts.onReasoning?.(delta.reasoning);
         if (delta.content) {
