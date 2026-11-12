@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import { PROVIDER_PRESETS } from "./modelClient";
 import type { ChatMessage, MemoryNote, Settings, Task } from "./types";
 
 class KernelDB extends Dexie {
@@ -22,9 +23,9 @@ export const db = new KernelDB();
 export const DEFAULT_SETTINGS: Settings = {
   id: "settings",
   onboarded: false,
-  provider: "kernel",
-  baseUrl: "",
-  model: "",
+  provider: "opensource",
+  baseUrl: PROVIDER_PRESETS.opensource.baseUrl,
+  model: PROVIDER_PRESETS.opensource.model,
 };
 
 export async function getSettings(): Promise<Settings> {
