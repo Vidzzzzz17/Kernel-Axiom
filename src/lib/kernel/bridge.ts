@@ -3,6 +3,7 @@
  * falls back: secrets live in memory only, tools run against local IndexedDB.
  */
 export interface KernelBridge {
+  desktop?: { action(value: Record<string, unknown>): Promise<string> };
   secrets: { get(name: string): Promise<string | null>; set(name: string, value: string): Promise<void> };
   window?: { minimize(): void; toggleMaximize(): void; close(): void };
   workspace?: {

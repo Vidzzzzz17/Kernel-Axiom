@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { workspaceApi } from "./workspace";
+import { desktopAction, validateAction } from "./desktop";
 
 const DEV_URL = process.env.KERNEL_DEV_URL ?? "http://localhost:8080";
 const isDev = !app.isPackaged;
@@ -169,3 +170,20 @@ ipcMain.handle("ws:write", (_e, rel: string, content: string) => ws.write(rel, c
 ipcMain.handle("ws:list", (_e, rel: string) => ws.list(rel));
 ipcMain.handle("ws:run", (_e, code: string, lang: string) => ws.run(code, lang));
 ipcMain.handle("ws:cmd", (_e, command: string) => ws.cmd(command));
+
+/** Validate the caller and confirm desktop mutations at the privileged boundary. */
+ipcMain.handle("desktop:action", async (event, value: unknown) => {
+  if (!win || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame)
+    throw new Error("Untrusted desktop caller.");
+  const action = validateAction(value);
+  if (action.action !== "inspect") {
+    const result = await dialog.showMessageBox(win, {
+      type: "question", title: "Allow computer action?",
+      message: "Kernel Axiom wants to control a Windows app",
+      detail: JSON.stringify(action, null, 2),
+      buttons: ["Cancel", "Allow once"], defaultId: 0, cancelId: 0,
+    });
+    if (result.response !== 1) return "The user denied this desktop action.";
+  }
+  return desktopAction(action);
+});

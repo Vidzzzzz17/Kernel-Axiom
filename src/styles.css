@@ -270,3 +270,33 @@
 }
 @utility rise-in { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
 .orb[data-follow] .orb-eyes { transform: translate(var(--ex, 0), var(--ey, 0)); transition: transform .25s ease-out; animation: none; }
+
+/* Monochrome conversation surface; retain the Kernel orb as the brand accent. */
+.axiom-shell {
+  color-scheme: dark;
+  --background: oklch(0.16 0 0);
+  --foreground: oklch(0.94 0 0);
+  --card: oklch(0.20 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.23 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.94 0 0);
+  --primary-foreground: oklch(0.16 0 0);
+  --secondary: oklch(0.25 0 0);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.25 0 0);
+  --muted-foreground: oklch(0.70 0 0);
+  --accent: oklch(0.29 0 0);
+  --accent-foreground: var(--foreground);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: var(--foreground);
+  --whisper: oklch(0.25 0 0);
+  --glass: oklch(0.20 0 0 / 94%);
+  --hairline: oklch(1 0 0 / 12%);
+  --shadow-glass: 0 12px 40px oklch(0 0 0 / 12%);
+  --shadow-float: 0 12px 32px oklch(0 0 0 / 20%);
+  background: var(--background);
+  color: var(--foreground);
+}
+.axiom-shell .glass-soft { background: oklch(0.22 0 0 / 90%); }

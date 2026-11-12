@@ -73,6 +73,7 @@ export interface MemoryNote {
 export type ProviderKind = "opensource" | "kernel" | "demo" | "openai" | "openrouter" | "together" | "ollama";
 
 export interface Settings {
+  mode?: import("./modes").AgentMode;
   id: "settings";
   onboarded: boolean;
   provider: ProviderKind;
