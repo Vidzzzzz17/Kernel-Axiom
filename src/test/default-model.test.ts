@@ -11,8 +11,8 @@ describe("Default model", () => {
     expect(DEFAULT_SETTINGS.model).toBe(PROVIDER_PRESETS.opensource.model);
   });
 
-  it("sends the open-source base URL to a real endpoint, not the local server", () => {
-    expect(resolveBase(PROVIDER_PRESETS.opensource.baseUrl)).toBe("https://text.pollinations.ai/openai");
+  it("sends the open-source base URL through the app's own bridge, not the public host", () => {
+    expect(resolveBase(PROVIDER_PRESETS.opensource.baseUrl)).toBe("/api/opensource");
   });
 
   it("explains the open-source rate limit without mentioning workspace credits", () => {

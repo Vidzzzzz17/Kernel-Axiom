@@ -2,7 +2,7 @@ import type { ProviderKind, Settings } from "./types";
 import { secrets } from "./bridge";
 
 export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: string; model: string; needsKey: boolean }> = {
-  opensource: { label: "Open source (free)", baseUrl: "https://text.pollinations.ai/openai", model: "openai-fast", needsKey: false },
+  opensource: { label: "Open source (free)", baseUrl: "/api/opensource", model: "openai-fast", needsKey: false },
   kernel: { label: "Kernel AI (built in)", baseUrl: "/api/kernel", model: "openai/gpt-6-astra", needsKey: false },
   demo: { label: "Demo (simulated)", baseUrl: "", model: "", needsKey: false },
   openai: { label: "OpenAI-compatible", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", needsKey: true },
@@ -58,12 +58,12 @@ export interface StreamResult {
   toolCalls: ToolCall[];
 }
 
-/** List the free open-source models (Pollinations /models, no key). */
+/** List the free open-source models (our own /api/opensource/models bridge). */
 export async function listOpenSourceModels(): Promise<string[]> {
-  const res = await fetch("https://text.pollinations.ai/models");
+  const res = await fetch(`${resolveBase("/api/opensource")}/models`);
   if (!res.ok) throw new Error(`Open-source model list answered ${res.status}`);
-  const json = (await res.json()) as { name: string; tier?: string }[];
-  return json.filter((m) => m.tier === undefined || m.tier === "anonymous").map((m) => m.name);
+  const json = (await res.json()) as { models?: string[] };
+  return json.models ?? [];
 }
 
 /** List local Ollama models (uses the native /api/tags endpoint). */
