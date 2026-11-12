@@ -74,12 +74,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
         </div>
       </fieldset>
 
-      {provider === "opensource" ? (
-        <p className="text-sm text-muted-foreground">
-          An open-source model (GPT-OSS), free, no key and no account. The free tier allows roughly one reply every
-          45 seconds, so longer tasks take longer.
-        </p>
-      ) : provider === "kernel" ? (
+      {provider === "kernel" ? (
         <p className="text-sm text-muted-foreground">
           A real model, ready to use. No key to paste: it runs through Kernel Axiom's own connection.
         </p>
@@ -89,6 +84,12 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
         </p>
       ) : (
         <>
+          {provider === "opensource" && (
+            <p className="text-sm text-muted-foreground">
+              An open-source model (GPT-OSS), free, no key and no account. The free tier allows roughly one reply every
+              45 seconds, so longer tasks take longer.
+            </p>
+          )}
           <label className="block">
             <span className="label-mono text-muted-foreground">Base URL</span>
             <input className={cn(field, "mt-1.5 font-mono text-xs")} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
