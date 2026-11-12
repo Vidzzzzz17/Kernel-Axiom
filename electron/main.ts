@@ -105,7 +105,7 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  tray = new Tray(nativeImage.createFromPath(resource("build", "tray.png")));
+  tray = new Tray(nativeImage.createFromPath(resource("build", "tray.png")).resize({ width: 16, height: 16 }));
   tray.setToolTip("Kernel Axiom");
   tray.setContextMenu(
     Menu.buildFromTemplate([

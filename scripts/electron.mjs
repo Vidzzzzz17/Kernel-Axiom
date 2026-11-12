@@ -4,6 +4,10 @@
 //   node scripts/electron.mjs build     -> SPA web build + compile + electron-builder (win x64)
 import { build } from "esbuild";
 import { spawnSync } from "node:child_process";
+import { mkdirSync, copyFileSync } from "node:fs";
+
+mkdirSync("build", { recursive: true });
+for (const name of ["icon.png", "tray.png"]) copyFileSync("src/assets/kernel-logo.png", `build/${name}`);
 
 const mode = process.argv[2] ?? "compile";
 const run = (cmd, args, env = {}) => {
@@ -25,5 +29,5 @@ await build({
 if (mode === "dev") run("npx", ["electron", "."]);
 if (mode === "build") {
   run("npx", ["vite", "build"], { KERNEL_ELECTRON: "1" });
-  run("npx", ["electron-builder", "--win", "--x64", "--publish", process.env.CI ? "always" : "never"]);
+  run("npx", ["electron-builder", "--win", "--x64", "--publish", process.env.KERNEL_PUBLISH === "1" ? "always" : "never"]);
 }

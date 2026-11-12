@@ -207,7 +207,7 @@ export function KernelApp() {
   const isHome = !activeId;
 
   return (
-    <div className="axiom-shell flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col">
       <TitleBar />
       <Backdrop />
       <div className="flex min-h-0 flex-1 gap-3 p-3">
@@ -261,8 +261,7 @@ export function KernelApp() {
           {isHome ? (
             <div className="flex flex-1 flex-col items-center justify-center px-4 pb-10">
               <Orb size={isMobile ? 96 : 128} state={restOrb === "idle" ? "looking" : restOrb} follow={restOrb === "idle"} />
-              <h2 className="rise-in mt-8 text-center text-4xl sm:text-5xl">What's on your mind?</h2>
-              <p className="mt-3 text-center text-muted-foreground">Think it through. Find the facts. Get it done.</p>
+              <h2 className="rise-in mt-8 text-center text-4xl sm:text-5xl">What should we work on?</h2>
               <ModePicker mode={mode} disabled={running} />
               <p className="mt-3 text-xs text-muted-foreground">{mode === "computer" ? (isDesktop() ? "Windows apps · workspace files · approved commands" : "Computer controls require the Windows desktop app") : mode === "research" ? "Web research with sources" : "A conversation, without computer actions"}</p>
               <Composer ref={composerRef} className="mt-8 w-full max-w-2xl" onSend={send} onVoice={() => setVoiceOpen(true)} hint />
@@ -432,7 +431,7 @@ function AssistantBlock({
 function Onboarding({ onDone }: { onDone: (p: Parameters<typeof saveSettings>[0]) => void }) {
   const [step, setStep] = useState(0);
   return (
-    <div className="axiom-shell grid min-h-dvh place-items-center p-4">
+    <div className="grid min-h-dvh place-items-center p-4">
       <Backdrop />
       <motion.div layout transition={spring} className="glass w-full max-w-xl rounded-3xl p-6 sm:p-8">
         <AnimatePresence mode="wait">

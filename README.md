@@ -54,7 +54,7 @@ The browser version cannot control Windows apps.
 Shell commands start in the chosen workspace but are NOT sandboxed: approved
 commands can access other files and the network. Stop prevents subsequent tools;
 already running native actions or commands may finish. Desktop actions time out
-after 15 seconds. The UI is Grok-inspired, not an xAI service integration.
+after 15 seconds. The original white interface is retained, with model selection and Computer mode. This is not an xAI service integration.
 
 Packaged desktop builds using built-in API routes need VITE_KERNEL_REMOTE_URL
 set to the deployed web origin at build time. Local Ollama chat/computer tools
