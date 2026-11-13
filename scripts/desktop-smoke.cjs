@@ -67,8 +67,9 @@ const { spawn } = require('node:child_process');
     await act({ action: 'click', snapshotId: snapshot.snapshotId, x: button.x, y: button.y, button: 'left', count: 1 });
     snapshot = await inspect();
     if (!snapshot.controls.some(control => control.name === 'Click verified')) throw new Error('Native click was not delivered');
-    const input = snapshot.controls.find(control => control.name === 'Fixture input');
-    if (!input) throw new Error('Fixture text field was not returned');
+    // Legacy WinForms can expose an Edit control without its AccessibleName.
+    const input = snapshot.controls.find(control => control.type === 'ControlType.Edit');
+    if (!input) throw new Error('Fixture text field was not returned: ' + JSON.stringify(snapshot.controls));
     await act({ action: 'click', snapshotId: snapshot.snapshotId, x: input.x, y: input.y, button: 'left', count: 1 });
     snapshot = await inspect();
     await act({ action: 'type', snapshotId: snapshot.snapshotId, text: 'Hello from Axiom' });

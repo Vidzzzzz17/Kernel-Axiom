@@ -104,8 +104,9 @@ if ($request.action -eq 'inspect') {
       $current = $element.Current
       if (!$current.IsOffscreen -and !$current.IsPassword) {
         $rect = $current.BoundingRectangle
-        if ($current.Name -and $rect.Width -gt 0 -and $rect.Height -gt 0) {
-          $controls.Add(@{ name=$current.Name.Substring(0,[Math]::Min(240,$current.Name.Length)); type=$current.ControlType.ProgrammaticName; enabled=$current.IsEnabled; x=[int]($rect.X+$rect.Width/2); y=[int]($rect.Y+$rect.Height/2) })
+        if ($rect.Width -gt 0 -and $rect.Height -gt 0) {
+          $controlName = [string]$current.Name
+          $controls.Add(@{ name=$controlName.Substring(0,[Math]::Min(240,$controlName.Length)); automationId=$current.AutomationId; type=$current.ControlType.ProgrammaticName; enabled=$current.IsEnabled; x=[int]($rect.X+$rect.Width/2); y=[int]($rect.Y+$rect.Height/2) })
         }
         $child = $walker.GetFirstChild($element)
         while ($child -and ($visited+$queue.Count) -lt 250) { $queue.Enqueue($child); $child=$walker.GetNextSibling($child) }
