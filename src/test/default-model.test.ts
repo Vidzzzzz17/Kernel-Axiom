@@ -25,3 +25,9 @@ describe("Default model", () => {
     expect(friendlyMessage("kernel", 402, "Provider error 402")).toContain("credits");
   });
 });
+
+describe("Second free model", () => {
+  it("offers a free Gemma model through OpenRouter", () => {
+    expect(PROVIDER_PRESETS.openrouterfree.model.endsWith(":free")).toBe(true);
+  });
+});

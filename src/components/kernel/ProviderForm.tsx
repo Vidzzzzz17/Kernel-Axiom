@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PROVIDER_PRESETS, apiKeyName, listOllamaModels, listOpenSourceModels } from "@/lib/kernel/modelClient";
+import { PROVIDER_PRESETS, apiKeyName, listFreeOpenRouterModels, listOllamaModels, listOpenSourceModels } from "@/lib/kernel/modelClient";
 import { secrets, isDesktop } from "@/lib/kernel/bridge";
 import type { ProviderKind, Settings } from "@/lib/kernel/types";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,8 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
   const loadModels = async () => {
     setModelErr("");
     try {
-      const m = provider === "opensource" ? await listOpenSourceModels() : await listOllamaModels(baseUrl);
+      const m =
+        provider === "opensource" ? await listOpenSourceModels() : provider === "openrouterfree" ? await listFreeOpenRouterModels() : await listOllamaModels(baseUrl);
       setModels(m);
       if (m[0] && !m.includes(model)) setModel(m[0]);
     } catch {
@@ -90,6 +91,12 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
               45 seconds, so longer tasks take longer.
             </p>
           )}
+          {provider === "openrouterfree" && (
+            <p className="text-sm text-muted-foreground">
+              Google's open Gemma model and other free models, with no waits between replies. Needs a free OpenRouter key
+              (sign up at openrouter.ai, no card). Use Find models to pick another free one.
+            </p>
+          )}
           <label className="block">
             <span className="label-mono text-muted-foreground">Base URL</span>
             <input className={cn(field, "mt-1.5 font-mono text-xs")} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
@@ -106,7 +113,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
               ) : (
                 <input className={cn(field, "font-mono text-xs")} value={model} onChange={(e) => setModel(e.target.value)} />
               )}
-              {(provider === "ollama" || provider === "opensource") && (
+              {(provider === "ollama" || provider === "opensource" || provider === "openrouterfree") && (
                 <KButton type="button" className="shrink-0 rounded-xl" onClick={loadModels}>
                   Find models
                 </KButton>

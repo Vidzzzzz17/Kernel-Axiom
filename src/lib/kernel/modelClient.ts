@@ -3,6 +3,7 @@ import { secrets } from "./bridge";
 
 export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: string; model: string; needsKey: boolean }> = {
   opensource: { label: "Open source (free)", baseUrl: "/api/opensource", model: "openai-fast", needsKey: false },
+  openrouterfree: { label: "Gemma (free, free key)", baseUrl: "https://openrouter.ai/api/v1", model: "google/gemma-4-31b-it:free", needsKey: true },
   kernel: { label: "Kernel AI (built in)", baseUrl: "/api/kernel", model: "openai/gpt-6-astra", needsKey: false },
   demo: { label: "Demo (simulated)", baseUrl: "", model: "", needsKey: false },
   openai: { label: "OpenAI-compatible", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", needsKey: true },
@@ -66,6 +67,14 @@ export async function listOpenSourceModels(): Promise<string[]> {
   return json.models ?? [];
 }
 
+/** List OpenRouter's free (":free") models. */
+export async function listFreeOpenRouterModels(): Promise<string[]> {
+  const res = await fetch("https://openrouter.ai/api/v1/models");
+  if (!res.ok) throw new Error(`OpenRouter answered ${res.status}`);
+  const json = (await res.json()) as { data?: { id: string }[] };
+  return (json.data ?? []).map((m) => m.id).filter((id) => id.endsWith(":free"));
+}
+
 /** List local Ollama models (uses the native /api/tags endpoint). */
 export async function listOllamaModels(baseUrl: string): Promise<string[]> {
   const root = baseUrl.replace(/\/v1\/?$/, "");
@@ -91,7 +100,7 @@ export async function streamChat(opts: {
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (key) headers["Authorization"] = `Bearer ${key}`;
-  if (settings.provider === "openrouter") headers["X-Title"] = "Kernel Axiom";
+  if (settings.provider === "openrouter" || settings.provider === "openrouterfree") headers["X-Title"] = "Kernel Axiom";
 
   const res = await fetch(`${resolveBase(settings.baseUrl || preset.baseUrl)}/chat/completions`, {
     method: "POST",
