@@ -5,6 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { workspaceApi } from "./workspace";
 import { computerApi } from "./computer";
+import { proxyApi } from "./api-proxy";
 
 const DEV_URL = process.env.KERNEL_DEV_URL ?? "http://localhost:8080";
 const isDev = !app.isPackaged;
@@ -120,6 +121,9 @@ app.whenReady().then(() => {
   // Serve the built SPA from dist/client; unknown paths fall back to the shell.
   const root = resource("dist", "client");
   protocol.handle("app", (req) => {
+    const url = new URL(req.url);
+    if (url.host !== "kernel") return new Response("Not found", { status: 404 });
+    if (url.pathname.startsWith("/api/")) return proxyApi(req, process.env.KERNEL_REMOTE_URL || "https://kernel-axiom.vercel.app", net.fetch);
     const rel = decodeURIComponent(new URL(req.url).pathname);
     let file = path.join(root, rel);
     if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, "_shell.html");

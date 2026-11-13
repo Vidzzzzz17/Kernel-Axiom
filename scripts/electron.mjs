@@ -19,6 +19,7 @@ await build({
   format: "cjs",
   target: "node20",
   external: ["electron"],
+  define: { "process.env.KERNEL_REMOTE_URL": JSON.stringify(process.env.VITE_KERNEL_REMOTE_URL || "https://kernel-axiom.vercel.app") },
   outdir: "dist-electron",
   outExtension: { ".js": ".cjs" },
 });

@@ -48,6 +48,6 @@ The build prepares desktop icons from `src/assets/kernel-logo.png`, copies the n
 
 **Desktop checks** in GitHub Actions uploads an installer artifact for pull requests and manual runs. A `v*` tag runs the release workflow and publishes installer/update files. The existing `/download` ZIP is an older build, not the new PC-control installer.
 
-Desktop built-in API calls default to `https://kernel-axiom.vercel.app`. Override `VITE_KERNEL_REMOTE_URL` at build time for another backend. The backend must allow the desktop origin and supply its server-side gateway credentials; no secrets belong in this repository.
+Desktop built-in API calls use a same-origin Electron proxy to `https://kernel-axiom.vercel.app`. Override `VITE_KERNEL_REMOTE_URL` at build time for another HTTPS backend. The proxy preserves streaming and cancellation without forwarding browser cookies or keys. The backend supplies its server-side gateway credentials; no secrets belong in this repository.
 
 Before release, smoke-test the packaged app: onboarding, model connection, enable/cancel, Notepad inspection and Unicode typing, click/scroll, denied approval, stop while awaiting approval, emergency shortcut, reload, workspace selection, tray and title-bar controls.

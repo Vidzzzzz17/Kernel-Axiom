@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:computer": "node --experimental-strip-types --test electron/computer-policy.node.test.ts",
+    "test:computer": "node --experimental-strip-types --test electron/computer-policy.node.test.ts electron/api-proxy.node.test.ts",
     "electron:compile": "node scripts/electron.mjs compile",
     "electron:dev": "node scripts/electron.mjs dev",
     "electron:build": "node scripts/electron.mjs build"
