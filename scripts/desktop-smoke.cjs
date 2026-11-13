@@ -43,7 +43,9 @@ const { spawn } = require('node:child_process');
     // Native permission is stubbed only in this isolated test process. Production
     // still shows the native dialog and the agent separately tests each approval.
     await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false }); });
-    fixture = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('scripts/desktop-fixture.ps1')], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    // The fixture must create a visible window on the disposable CI desktop.
+    // STARTF_USESHOWWINDOW/SW_HIDE would also hide its first WinForms window.
+    fixture = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('scripts/desktop-fixture.ps1')], { windowsHide: false, stdio: ['ignore', 'pipe', 'pipe'] });
     fixture.stdout.on('data', data => console.log('Fixture:', data.toString()));
     fixture.stderr.on('data', data => console.error('Fixture:', data.toString()));
     fixture.on('error', error => console.error('Fixture process:', error));
