@@ -119,10 +119,12 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* Keep entry scripts in the head on both server and client. React hoists
+            async scripts here during hydration, so a body placement can mismatch. */}
+        <Scripts />
       </head>
       <body>
         {children}
-        <Scripts />
       </body>
     </html>
   );
@@ -138,3 +140,4 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+
