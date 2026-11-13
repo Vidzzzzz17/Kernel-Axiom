@@ -33,10 +33,10 @@ jobs:
         env:
           KERNEL_ELECTRON: "1"
           VITE_KERNEL_REMOTE_URL: https://kernel-axiom.vercel.app
-      - name: Package Windows installer
+      - name: Package Windows app
         id: package
         if: ${{ !cancelled() && steps.compile.outcome == 'success' && steps.build.outcome == 'success' }}
-        run: bunx electron-builder --win --x64 --publish never
+        run: bunx electron-builder --win --x64 --dir --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
       - name: Install isolated desktop smoke-test driver
@@ -45,6 +45,10 @@ jobs:
       - name: Smoke-test packaged Windows app
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         run: node scripts/desktop-smoke.cjs
+      - name: Build installer from tested app
+        run: bunx electron-builder --win --x64 --prepackaged release/win-unpacked --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         with:

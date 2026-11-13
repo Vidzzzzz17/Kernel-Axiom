@@ -74,12 +74,12 @@ const { spawn } = require('node:child_process');
     snapshot = await inspect();
     await act({ action: 'type', snapshotId: snapshot.snapshotId, text: 'Hello from Axiom' });
     snapshot = await inspect();
-    if (!snapshot.controls.some(control => control.name === 'Hello from Axiom')) throw new Error('Native typing was not delivered');
+    if (!snapshot.controls.some(control => control.name === 'Hello from Axiom')) throw new Error('Native typing was not delivered: ' + JSON.stringify(snapshot.controls));
     await act({ action: 'key', snapshotId: snapshot.snapshotId, keys: ['CTRL', 'A'] });
     snapshot = await inspect();
     await act({ action: 'type', snapshotId: snapshot.snapshotId, text: 'Unicode: नमस्ते' });
     snapshot = await inspect();
-    if (!snapshot.controls.some(control => control.name === 'Unicode: नमस्ते')) throw new Error('Unicode typing or keyboard shortcut failed');
+    if (!snapshot.controls.some(control => control.name === 'Unicode: नमस्ते')) throw new Error('Unicode typing or keyboard shortcut failed: ' + JSON.stringify(snapshot.controls));
     await page.evaluate(() => window.kernel.computer.stop());
     let rejected = false;
     try { await act({ action: 'type', snapshotId: snapshot.snapshotId, text: 'Must not run' }); } catch { rejected = true; }
