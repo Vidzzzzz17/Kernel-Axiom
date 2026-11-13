@@ -8,6 +8,7 @@ Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class AxiomInput {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
   [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
@@ -21,6 +22,10 @@ public static class AxiomInput {
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int command);
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  delegate bool WindowCallback(IntPtr h, IntPtr data);
+  [DllImport("user32.dll")] static extern bool EnumWindows(WindowCallback callback, IntPtr data);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder text, int count);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
@@ -28,6 +33,12 @@ public static class AxiomInput {
   [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint flags);
   [DllImport("user32.dll", SetLastError=true)] static extern uint SendInput(uint n, INPUT[] inputs, int size);
   public static uint ProcessId(IntPtr h) { uint p; GetWindowThreadProcessId(h, out p); return p; }
+  public static string Title(IntPtr h) { var text=new StringBuilder(512); GetWindowText(h,text,text.Capacity); return text.ToString(); }
+  public static IntPtr[] Windows() {
+    var windows=new List<IntPtr>();
+    EnumWindows((h,data) => { if (IsWindowVisible(h) && Title(h).Length>0) windows.Add(h); return true; },IntPtr.Zero);
+    return windows.ToArray();
+  }
   public static RECT Bounds(IntPtr h) { RECT r; if (!GetWindowRect(h, out r)) throw new Exception("Window disappeared."); return r; }
   public static void Send(INPUT[] inputs) { if (SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT))) != inputs.Length) throw new Exception("Windows blocked input. Elevated or protected apps cannot be controlled."); }
   static INPUT Key(ushort vk, ushort scan, uint flags) { return new INPUT { type=1, data=new UNION { key=new KEYBDINPUT { vk=vk, scan=scan, flags=flags } } }; }
@@ -69,7 +80,10 @@ function Get-Target([IntPtr]$handle) {
   return @{ windowId=$handle.ToInt64().ToString(); processId=$processId; title=$element.Current.Name; left=$rect.Left; top=$rect.Top; right=$rect.Right; bottom=$rect.Bottom }
 }
 if ($request.action -eq 'inspect') {
-  $windows = @(Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.Id -ne $request.ownPid } | Select-Object -First 60 | ForEach-Object { @{ windowId=$_.MainWindowHandle.ToInt64().ToString(); title=$_.MainWindowTitle; app=$_.ProcessName } })
+  $windows = @([AxiomInput]::Windows() | Where-Object { [AxiomInput]::ProcessId($_) -ne $request.ownPid } | Select-Object -First 60 | ForEach-Object {
+    $windowProcessId = [AxiomInput]::ProcessId($_)
+    @{ windowId=$_.ToInt64().ToString(); title=[AxiomInput]::Title($_); processId=$windowProcessId }
+  })
   $handle = if ($request.windowId) { [IntPtr][long]$request.windowId } else { [AxiomInput]::GetForegroundWindow() }
   if ($handle -eq [IntPtr]::Zero -or [AxiomInput]::ProcessId($handle) -eq $request.ownPid) {
     @{ windows=$windows; note='Choose a windowId from this list and inspect it.' } | ConvertTo-Json -Depth 6 -Compress

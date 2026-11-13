@@ -1,4 +1,5 @@
 # Disposable UI for CI input verification. Never targets user applications.
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Axiom Automation Fixture'

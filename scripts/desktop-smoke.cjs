@@ -43,14 +43,21 @@ const { spawn } = require('node:child_process');
     // Native permission is stubbed only in this isolated test process. Production
     // still shows the native dialog and the agent separately tests each approval.
     await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false }); });
-    fixture = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('scripts/desktop-fixture.ps1')], { windowsHide: true, stdio: 'ignore' });
+    fixture = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('scripts/desktop-fixture.ps1')], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    fixture.stdout.on('data', data => console.log('Fixture:', data.toString()));
+    fixture.stderr.on('data', data => console.error('Fixture:', data.toString()));
+    fixture.on('error', error => console.error('Fixture process:', error));
     await new Promise(resolve => setTimeout(resolve, 3000));
     const enabled = await page.evaluate(() => window.kernel.computer.enable());
     if (!enabled.enabled) throw new Error('Native PC session did not enable');
     const act = action => page.evaluate(value => window.kernel.computer.execute(value), action);
-    const listing = await act({ action: 'inspect' });
-    const target = listing.windows.find(window => window.title === 'Axiom Automation Fixture');
-    if (!target) throw new Error('Fixture was not found by native inspection');
+    let listing, target;
+    for (let attempt = 0; attempt < 5 && !target; attempt++) {
+      listing = await act({ action: 'inspect' });
+      target = listing.windows.find(window => window.title === 'Axiom Automation Fixture');
+      if (!target) await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    if (!target) throw new Error('Fixture was not found by native inspection: ' + JSON.stringify({ exitCode: fixture.exitCode, listing }));
     const inspect = () => act({ action: 'inspect', windowId: target.windowId });
     let snapshot = await inspect();
     const button = snapshot.controls.find(control => control.name === 'Fixture click');
