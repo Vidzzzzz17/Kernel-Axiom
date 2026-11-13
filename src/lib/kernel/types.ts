@@ -70,7 +70,7 @@ export interface MemoryNote {
   updatedAt: number;
 }
 
-export type ProviderKind = "opensource" | "kernel" | "demo" | "openai" | "openrouter" | "together" | "ollama";
+export type ProviderKind = "opensource" | "openrouterfree" | "kernel" | "demo" | "openai" | "openrouter" | "together" | "ollama";
 
 export interface Settings {
   id: "settings";
