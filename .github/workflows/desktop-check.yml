@@ -1,0 +1,35 @@
+name: Desktop checks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run test:computer
+      - run: bun run test
+      - run: bunx tsc --noEmit
+      - run: bunx tsc -p tsconfig.electron.json
+      - run: bun run electron:compile
+      - name: Build desktop shell
+        run: bun run build
+        env:
+          KERNEL_ELECTRON: "1"
+          VITE_KERNEL_REMOTE_URL: https://kernel-axiom.vercel.app
+      - name: Package Windows installer
+        run: bunx electron-builder --win --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-Axiom-Windows
+          path: release/*.exe
+          if-no-files-found: error

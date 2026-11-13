@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Menu, PanelRight, X } from "lucide-react";
+import { Menu, Monitor, PanelRight, X } from "lucide-react";
 import ReactMarkdownLite from "./MessageText";
 import { db, DEFAULT_SETTINGS, deleteTask, saveSettings, uid } from "@/lib/kernel/db";
 import { runAgent } from "@/lib/kernel/agent";
@@ -20,6 +20,8 @@ import { VoiceMode } from "./VoiceMode";
 import { SettingsPanel } from "./SettingsPanel";
 import { ProviderForm } from "./ProviderForm";
 import { TitleBar } from "./TitleBar";
+import { ComputerSetup } from "./ComputerSetup";
+import kernelLogo from "@/assets/kernel-logo.png";
 import { IconButton, KButton, spring } from "./ui";
 
 const SUGGESTIONS = [
@@ -59,6 +61,8 @@ export function KernelApp() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState<false | "Model" | "Memory">(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [computerOpen, setComputerOpen] = useState(false);
+  const [computerEnabled, setComputerEnabled] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [restOrb, setRestOrb] = useState<OrbState>("looking");
   const [now, setNow] = useState(Date.now());
@@ -68,6 +72,13 @@ export function KernelApp() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const running = !!run && !["done", "celebrating", "error", "paused"].includes(run.orb);
+  useEffect(() => {
+    void window.kernel?.computer?.status().then(s => setComputerEnabled(s.enabled)).catch(() => undefined);
+    return window.kernel?.computer?.onStopped(() => {
+      setComputerEnabled(false);
+      abortRef.current?.abort();
+    });
+  }, []);
 
   // ticking clock while running
   useEffect(() => {
@@ -85,8 +96,8 @@ export function KernelApp() {
       }
     };
     window.addEventListener("keydown", onKey);
-    window.kernel?.onFocusCommandBar?.(() => composerRef.current?.focus());
-    return () => window.removeEventListener("keydown", onKey);
+    const unsubscribe = window.kernel?.onFocusCommandBar?.(() => composerRef.current?.focus());
+    return () => { window.removeEventListener("keydown", onKey); unsubscribe?.(); };
   }, []);
 
   useEffect(() => {
@@ -127,11 +138,14 @@ export function KernelApp() {
           takeSteer: () => steerRef.current.splice(0),
           requestApproval: (req) =>
             new Promise<boolean>((resolve) => {
+              if (ctrl.signal.aborted) { resolve(false); return; }
               const done = (ok: boolean) => {
+                ctrl.signal.removeEventListener("abort", cancelled);
                 setPending(null);
                 resolve(ok);
               };
-              ctrl.signal.addEventListener("abort", () => done(false), { once: true });
+              const cancelled = () => done(false);
+              ctrl.signal.addEventListener("abort", cancelled, { once: true });
               setPending({ req, resolve: done });
             }),
           emit: (e) => {
@@ -241,6 +255,10 @@ export function KernelApp() {
             </IconButton>
             <h1 className="truncate text-sm">{activeTask?.title ?? ""}</h1>
             <div className="ml-auto flex items-center gap-1">
+              <KButton variant="glass" className="gap-2 text-xs" onClick={() => setComputerOpen(true)}>
+                <Monitor className="size-4" aria-hidden />{computerEnabled ? "PC control on" : "PC setup"}
+              </KButton>
+              {computerEnabled && <KButton className="text-xs text-destructive" onClick={() => { abortRef.current?.abort(); void window.kernel?.computer?.stop().catch(() => undefined); }}>Stop PC</KButton>}
               {activeId && !wsOpen && (
                 <IconButton label="Open workspace" variant="glass" onClick={() => setWsOpen(true)}>
                   <PanelRight className="size-4" aria-hidden />
@@ -254,7 +272,7 @@ export function KernelApp() {
 
           {isHome ? (
             <div className="flex flex-1 flex-col items-center justify-center px-4 pb-10">
-              <Orb size={isMobile ? 96 : 128} state={restOrb === "idle" ? "looking" : restOrb} follow={restOrb === "idle"} />
+              <img src={kernelLogo} alt="Kernel Axiom" className="size-24 rounded-3xl sm:size-32" />
               <h2 className="rise-in mt-8 text-center text-4xl sm:text-5xl">What should we work on?</h2>
               <Composer ref={composerRef} className="mt-8 w-full max-w-2xl" onSend={send} onVoice={() => setVoiceOpen(true)} hint />
               <ul className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
@@ -348,6 +366,7 @@ export function KernelApp() {
           if (a === "workspace") setWsOpen(true);
         }}
       />
+      {computerOpen && <ComputerSetup settings={settings} onClose={() => setComputerOpen(false)} onStatus={setComputerEnabled} />}
       <AnimatePresence>
         {settingsOpen && <SettingsPanel settings={settings} initialTab={settingsOpen} onClose={() => setSettingsOpen(false)} />}
       </AnimatePresence>
@@ -428,7 +447,7 @@ function Onboarding({ onDone }: { onDone: (p: Parameters<typeof saveSettings>[0]
         <AnimatePresence mode="wait">
           {step === 0 ? (
             <motion.div key="a" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="flex flex-col items-center text-center">
-              <Orb size={96} state="surprised" />
+              <img src={kernelLogo} alt="Kernel Axiom" className="size-24 rounded-3xl" />
               <h1 className="mt-6 text-4xl">Kernel Axiom</h1>
               <p className="mt-3 max-w-sm text-muted-foreground">
                 A calm agent that lives on your device. No accounts. It asks before it changes anything.
@@ -453,3 +472,4 @@ function Onboarding({ onDone }: { onDone: (p: Parameters<typeof saveSettings>[0]
     </div>
   );
 }
+

@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("kernel", {
+  computer: {
+    status: () => ipcRenderer.invoke("computer:status"),
+    enable: () => ipcRenderer.invoke("computer:enable"),
+    stop: () => ipcRenderer.invoke("computer:stop"),
+    execute: (action: unknown) => ipcRenderer.invoke("computer:execute", action),
+    onStopped: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on("computer:stopped", listener);
+      return () => ipcRenderer.removeListener("computer:stopped", listener);
+    },
+  },
   secrets: {
     get: (name: string) => ipcRenderer.invoke("secrets:get", name),
     set: (name: string, value: string) => ipcRenderer.invoke("secrets:set", name, value),
@@ -20,6 +31,9 @@ contextBridge.exposeInMainWorld("kernel", {
     root: () => ipcRenderer.invoke("ws:root"),
   },
   onFocusCommandBar: (cb: () => void) => {
-    ipcRenderer.on("kernel:focus-command-bar", () => cb());
+    const listener = () => cb();
+    ipcRenderer.on("kernel:focus-command-bar", listener);
+    return () => ipcRenderer.removeListener("kernel:focus-command-bar", listener);
   },
 });
+
