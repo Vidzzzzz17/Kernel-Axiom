@@ -140,7 +140,7 @@ switch ($request.action) {
   'key' {
     $map = @{ CTRL=17; ALT=18; SHIFT=16; WIN=91; ENTER=13; TAB=9; ESC=27; BACKSPACE=8; DELETE=46; SPACE=32; UP=38; DOWN=40; LEFT=37; RIGHT=39; HOME=36; END=35; PAGEUP=33; PAGEDOWN=34 }
     $codes = @($request.keys | ForEach-Object { if ($map.ContainsKey($_)) { $map[$_] } elseif ($_ -match '^F(\d+)$') { 111+[int]$Matches[1] } else { [int][char]$_ } })
-    [AxiomInput]::Shortcut([ushort[]]$codes)
+    [AxiomInput]::Shortcut([System.UInt16[]]$codes)
   }
   'scroll' {
     $x=[int](($current.left+$current.right)/2); $y=[int](($current.top+$current.bottom)/2)
