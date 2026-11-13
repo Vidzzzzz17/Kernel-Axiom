@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PROVIDER_PRESETS, apiKeyName, listOllamaModels, listOpenSourceModels, streamChat } from "@/lib/kernel/modelClient";
+import { PROVIDER_PRESETS, apiKeyName, listFreeOpenRouterModels, listOllamaModels, listOpenSourceModels, streamChat } from "@/lib/kernel/modelClient";
 import { secrets, isDesktop } from "@/lib/kernel/bridge";
 import type { ProviderKind, Settings } from "@/lib/kernel/types";
 import { cn } from "@/lib/utils";
@@ -62,13 +62,14 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
   const loadModels = async () => {
     setModelErr("");
     try {
-      const m = provider === "opensource" ? await listOpenSourceModels() : await listOllamaModels(baseUrl);
+      const m = provider === "opensource" ? await listOpenSourceModels() : provider === "openrouterfree" ? await listFreeOpenRouterModels() : await listOllamaModels(baseUrl);
       setModels(m);
       if (m[0] && !m.includes(model)) setModel(m[0]);
     } catch {
       setModelErr(
         provider === "opensource"
           ? "Couldn't reach the open-source model list. Check your connection and try again."
+          : provider === "openrouterfree" ? "Couldn't reach OpenRouter's free model list. Check your connection and try again."
           : "Couldn't reach Ollama. Is it running, with OLLAMA_ORIGINS allowing this app?",
       );
     }
@@ -112,7 +113,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
 
       {provider === "kernel" ? (
         <p className="text-sm text-muted-foreground">
-          A real model, ready to use. No key to paste: it runs through Kernel Axiom's own connection.
+          Uses Kernel Axiom's hosted connection. Test it below to check availability and tool calling.
         </p>
       ) : provider === "demo" ? (
         <p className="text-sm text-muted-foreground">
@@ -124,6 +125,11 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
             <p className="text-sm text-muted-foreground">
               An open-source model (GPT-OSS), free, no key and no account. The free tier allows roughly one reply every
               45 seconds, so longer tasks take longer.
+            </p>
+          )}
+          {provider === "openrouterfree" && (
+            <p className="text-sm text-muted-foreground">
+              Google's Gemma and other free models through OpenRouter. Add your OpenRouter key, then use Find models to choose a model. Availability and rate limits vary; test tool calling before PC tasks.
             </p>
           )}
           <label className="block">
@@ -142,7 +148,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
               ) : (
                 <input className={cn(field, "font-mono text-xs")} value={model} onChange={(e) => setModel(e.target.value)} />
               )}
-              {(provider === "ollama" || provider === "opensource") && (
+              {(provider === "ollama" || provider === "opensource" || provider === "openrouterfree") && (
                 <KButton type="button" className="shrink-0 rounded-xl" onClick={loadModels}>
                   Find models
                 </KButton>

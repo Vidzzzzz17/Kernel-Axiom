@@ -70,7 +70,7 @@ export interface MemoryNote {
   updatedAt: number;
 }
 
-export type ProviderKind = "opensource" | "kernel" | "demo" | "openai" | "openrouter" | "together" | "ollama";
+export type ProviderKind = "opensource" | "openrouterfree" | "kernel" | "demo" | "openai" | "openrouter" | "together" | "ollama";
 
 export interface Settings {
   id: "settings";
@@ -93,3 +93,4 @@ export type AgentEvent =
   | { type: "text"; delta: string }
   | { type: "workspace"; patch: Partial<WorkspaceView> }
   | { type: "approval-result"; record: ApprovalRecord };
+
