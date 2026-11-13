@@ -67,8 +67,8 @@ const { spawn } = require('node:child_process');
     await act({ action: 'click', snapshotId: snapshot.snapshotId, x: button.x, y: button.y, button: 'left', count: 1 });
     snapshot = await inspect();
     if (!snapshot.controls.some(control => control.name === 'Click verified')) throw new Error('Native click was not delivered');
-    // Legacy WinForms can expose an Edit control without its AccessibleName.
-    const input = snapshot.controls.find(control => control.type === 'ControlType.Edit');
+    // Legacy WinForms may expose a generic Pane; its native EDIT class still identifies the field.
+    const input = snapshot.controls.find(control => control.type === 'ControlType.Edit' || /EDIT/i.test(control.className));
     if (!input) throw new Error('Fixture text field was not returned: ' + JSON.stringify(snapshot.controls));
     await act({ action: 'click', snapshotId: snapshot.snapshotId, x: input.x, y: input.y, button: 'left', count: 1 });
     snapshot = await inspect();

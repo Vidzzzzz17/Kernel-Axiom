@@ -106,7 +106,7 @@ if ($request.action -eq 'inspect') {
         $rect = $current.BoundingRectangle
         if ($rect.Width -gt 0 -and $rect.Height -gt 0) {
           $controlName = [string]$current.Name
-          $controls.Add(@{ name=$controlName.Substring(0,[Math]::Min(240,$controlName.Length)); automationId=$current.AutomationId; type=$current.ControlType.ProgrammaticName; enabled=$current.IsEnabled; x=[int]($rect.X+$rect.Width/2); y=[int]($rect.Y+$rect.Height/2) })
+          $controls.Add(@{ name=$controlName.Substring(0,[Math]::Min(240,$controlName.Length)); automationId=$current.AutomationId; className=$current.ClassName; type=$current.ControlType.ProgrammaticName; keyboardFocusable=$current.IsKeyboardFocusable; enabled=$current.IsEnabled; x=[int]($rect.X+$rect.Width/2); y=[int]($rect.Y+$rect.Height/2) })
         }
         $child = $walker.GetFirstChild($element)
         while ($child -and ($visited+$queue.Count) -lt 250) { $queue.Enqueue($child); $child=$walker.GetNextSibling($child) }
