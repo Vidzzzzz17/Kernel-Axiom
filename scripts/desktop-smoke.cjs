@@ -77,6 +77,7 @@ const { spawn } = require('node:child_process');
     if (!snapshot.controls.some(control => control.name === 'Hello from Axiom')) throw new Error('Native typing was not delivered: ' + JSON.stringify(snapshot.controls));
     await act({ action: 'key', snapshotId: snapshot.snapshotId, keys: ['CTRL', 'A'] });
     snapshot = await inspect();
+    if (!snapshot.controls.some(control => control.name === 'Shortcut verified')) throw new Error('Ctrl+A key events were not delivered: ' + JSON.stringify(snapshot.controls));
     await act({ action: 'type', snapshotId: snapshot.snapshotId, text: 'Unicode: नमस्ते' });
     snapshot = await inspect();
     if (!snapshot.controls.some(control => control.name === 'Unicode: नमस्ते')) throw new Error('Unicode typing or keyboard shortcut failed: ' + JSON.stringify(snapshot.controls));

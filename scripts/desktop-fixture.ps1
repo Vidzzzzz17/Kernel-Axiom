@@ -18,6 +18,16 @@ $button.Text = 'Fixture click'
 $button.SetBounds(30, 150, 160, 45)
 $button.Add_Click({ $label.Text = 'Click verified' })
 $inputBox.Add_TextChanged({ $label.Text = $inputBox.Text })
+# Legacy single-line WinForms edit controls do not consistently implement Ctrl+A.
+# Give the fixture an explicit shortcut and expose its receipt independently.
+$inputBox.Add_KeyDown({
+  param($sender, $keyEvent)
+  if ($keyEvent.Control -and $keyEvent.KeyCode -eq [System.Windows.Forms.Keys]::A) {
+    $sender.SelectAll()
+    $keyEvent.SuppressKeyPress = $true
+    $label.Text = 'Shortcut verified'
+  }
+})
 $form.Controls.AddRange(@($inputBox, $label, $button))
 $form.Add_Shown({ [Console]::WriteLine('Fixture ready: ' + $form.Handle.ToString()); $form.Activate() })
 [System.Windows.Forms.Application]::Run($form)
