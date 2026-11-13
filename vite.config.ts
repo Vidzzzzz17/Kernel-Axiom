@@ -14,7 +14,8 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
-    // Desktop build only: emit a static SPA shell (dist/client/_shell.html) for Electron to load.
+    // Desktop build only: emit .output/public/_shell.html; packaging maps it to dist/client.
     ...(process.env["KERNEL_ELECTRON"] ? { spa: { enabled: true } } : {}),
   },
 });
+

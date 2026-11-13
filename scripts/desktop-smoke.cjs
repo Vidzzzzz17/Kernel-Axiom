@@ -1,4 +1,4 @@
-// Runs against the packaged Windows app in CI. No model calls or desktop input.
+// Runs against the packaged Windows app in CI; native input targets a disposable fixture.
 const { _electron: electron } = require('../.smoke-tools/node_modules/playwright');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -16,6 +16,8 @@ const { spawn } = require('node:child_process');
     page.setDefaultTimeout(20000);
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') console.error(message.text()); });
+    page.on('requestfailed', request => console.error('Request failed:', request.url(), request.failure()));
     await page.getByRole('button', { name: 'Get started', exact: true }).click();
     await page.getByRole('button', { name: 'Demo (simulated)', exact: true }).click();
     await page.getByRole('button', { name: 'Done', exact: true }).click();
