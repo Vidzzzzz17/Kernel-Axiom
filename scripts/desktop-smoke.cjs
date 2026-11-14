@@ -40,25 +40,30 @@ const { spawn } = require('node:child_process');
     await page.getByRole('dialog', { name: 'Set up your assistant' }).waitFor();
     if (!await page.getByRole('button', { name: 'Local (Ollama)', exact: true }).getAttribute('aria-pressed').then(value => value === 'true')) throw new Error('Saved model was not restored');
     await page.keyboard.press('Escape');
+    if (errors.length) throw new Error('Renderer errors: ' + errors.join('; '));
     // Native permission is stubbed only in this isolated test process. Production
     // still shows the native dialog and the agent separately tests each approval.
     await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false }); });
     // The fixture must create a visible window on the disposable CI desktop.
     // STARTF_USESHOWWINDOW/SW_HIDE would also hide its first WinForms window.
     fixture = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('scripts/desktop-fixture.ps1')], { windowsHide: false, stdio: ['ignore', 'pipe', 'pipe'] });
-    fixture.stdout.on('data', data => console.log('Fixture:', data.toString()));
     fixture.stderr.on('data', data => console.error('Fixture:', data.toString()));
-    fixture.on('error', error => console.error('Fixture process:', error));
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    const fixtureWindowId = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Fixture did not become ready within 30 seconds')), 30000);
+      let output = '';
+      fixture.stdout.on('data', data => {
+        output += data.toString();
+        const ready = output.match(/Fixture ready: (\d+)/);
+        if (ready) { clearTimeout(timeout); resolve(ready[1]); }
+      });
+      fixture.once('error', error => { clearTimeout(timeout); reject(error); });
+      fixture.once('exit', code => { clearTimeout(timeout); reject(new Error('Fixture exited before readiness: ' + code)); });
+    });
     const enabled = await page.evaluate(() => window.kernel.computer.enable());
     if (!enabled.enabled) throw new Error('Native PC session did not enable');
     const act = action => page.evaluate(value => window.kernel.computer.execute(value), action);
-    let listing, target;
-    for (let attempt = 0; attempt < 5 && !target; attempt++) {
-      listing = await act({ action: 'inspect' });
-      target = listing.windows.find(window => window.title === 'Axiom Automation Fixture');
-      if (!target) await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+    const listing = await act({ action: 'inspect', windowId: fixtureWindowId });
+    const target = listing.windows.find(window => window.title === 'Axiom Automation Fixture');
     if (!target) throw new Error('Fixture was not found by native inspection: ' + JSON.stringify({ exitCode: fixture.exitCode, listing }));
     const inspect = () => act({ action: 'inspect', windowId: target.windowId });
     let snapshot = await inspect();
