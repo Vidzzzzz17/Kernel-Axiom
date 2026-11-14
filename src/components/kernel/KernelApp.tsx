@@ -272,7 +272,8 @@ export function KernelApp() {
 
           {isHome ? (
             <div className="flex flex-1 flex-col items-center justify-center px-4 pb-10">
-              <img src={kernelLogo} alt="Kernel Axiom" className="size-24 rounded-3xl sm:size-32" />
+              <Orb size={96} state="looking" follow className="sm:hidden" />
+              <Orb size={128} state="looking" follow className="hidden sm:block" />
               <h2 className="rise-in mt-8 text-center text-4xl sm:text-5xl">What should we work on?</h2>
               <Composer ref={composerRef} className="mt-8 w-full max-w-2xl" onSend={send} onVoice={() => setVoiceOpen(true)} hint />
               <ul className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
