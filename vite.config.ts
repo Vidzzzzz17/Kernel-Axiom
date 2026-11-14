@@ -14,6 +14,7 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    client: { entry: "client" },
     // Desktop build only: emit .output/public/_shell.html; packaging maps it to dist/client.
     ...(process.env["KERNEL_ELECTRON"] ? { spa: { enabled: true } } : {}),
   },
