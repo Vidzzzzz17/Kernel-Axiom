@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconButton } from "./ui";
@@ -11,11 +11,13 @@ interface Props {
   placeholder?: string | undefined;
   hint?: boolean;
   className?: string;
+  draft?: { text: string; nonce: number } | null;
 }
 
 export const Composer = forwardRef<HTMLTextAreaElement, Props>(
-  ({ running, onSend, onStop, onVoice, placeholder = "Ask Kernel Axiom to do something", hint, className }, ref) => {
+  ({ running, onSend, onStop, onVoice, placeholder = "Ask Kernel Axiom to do something", hint, className, draft }, ref) => {
     const [value, setValue] = useState("");
+    useEffect(() => { if (draft) setValue(draft.text); }, [draft]);
     const submit = () => {
       const t = value.trim();
       if (!t) return;
