@@ -15,13 +15,17 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: bun install
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run test:computer
+      - run: bun run test
       - name: Build installer and publish to GitHub Releases
         run: bun run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: "true"
+          VITE_KERNEL_REMOTE_URL: https://kernel-axiom.vercel.app
       - uses: softprops/action-gh-release@v2
         with:
           files: release/*.exe
+

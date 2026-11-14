@@ -1,0 +1,61 @@
+name: Desktop checks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+        id: install
+      - run: bun run test:computer
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - run: bun run test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - run: bunx tsc --noEmit
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - run: bunx tsc -p tsconfig.electron.json
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - run: bun run electron:compile
+        id: compile
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - name: Build desktop shell
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun run build
+        env:
+          KERNEL_ELECTRON: "1"
+          VITE_KERNEL_REMOTE_URL: https://kernel-axiom.vercel.app
+      - name: Package Windows app
+        id: package
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' && steps.build.outcome == 'success' }}
+        run: bunx electron-builder --win --x64 --dir --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Install isolated desktop smoke-test driver
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: npm install --prefix .smoke-tools --no-package-lock --ignore-scripts playwright@1.56.1
+      - name: Smoke-test packaged Windows app
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: node scripts/desktop-smoke.cjs
+      - name: Build installer from tested app
+        run: bunx electron-builder --win --x64 --prepackaged release/win-unpacked --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        with:
+          name: Desktop-smoke-screenshots
+          path: release/smoke/*.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-Axiom-Windows
+          path: release/*.exe
+          if-no-files-found: error

@@ -12,12 +12,9 @@ export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: st
   ollama: { label: "Local (Ollama)", baseUrl: "http://localhost:11434/v1", model: "llama3.1", needsKey: false },
 };
 
-/** Relative bases (the built-in provider) need the web host when running inside the desktop app. */
+/** Built-in calls stay same-origin; Electron's app:// handler forwards them server-side. */
 export function resolveBase(base: string) {
-  const b = base.replace(/\/$/, "");
-  if (!b.startsWith("/")) return b;
-  const remote = (import.meta.env["VITE_KERNEL_REMOTE_URL"] as string | undefined) ?? "";
-  return typeof window !== "undefined" && window.location.protocol === "app:" ? remote.replace(/\/$/, "") + b : b;
+  return base.replace(/\/$/, "");
 }
 
 export const apiKeyName = (p: ProviderKind) => `apiKey:${p}`;
@@ -92,10 +89,11 @@ export async function streamChat(opts: {
   signal?: AbortSignal;
   onToken: (delta: string) => void;
   onReasoning?: (delta: string) => void;
+  apiKey?: string;
 }): Promise<StreamResult> {
   const { settings } = opts;
   const preset = PROVIDER_PRESETS[settings.provider];
-  const key = await secrets.get(apiKeyName(settings.provider));
+  const key = opts.apiKey || await secrets.get(apiKeyName(settings.provider));
   if (preset.needsKey && !key) throw new Error("No API key set for this provider. Add it in Settings.");
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -159,3 +157,4 @@ export async function streamChat(opts: {
   }
   return { text, toolCalls: calls.filter(Boolean) };
 }
+

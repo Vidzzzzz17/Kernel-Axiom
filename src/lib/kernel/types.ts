@@ -93,3 +93,4 @@ export type AgentEvent =
   | { type: "text"; delta: string }
   | { type: "workspace"; patch: Partial<WorkspaceView> }
   | { type: "approval-result"; record: ApprovalRecord };
+

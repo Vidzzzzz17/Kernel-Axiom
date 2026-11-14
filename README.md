@@ -1,33 +1,53 @@
 # Kernel Axiom
 
-A calm, local-first AI agent. No accounts — tasks, chats, memory and settings are stored on your device (IndexedDB). Export/import everything as JSON from Settings → Data.
+A local-first AI assistant with a white interface and the original tan-square blue-bot logo. Chats and notes stay on-device. Model requests and approved app text go to your selected provider. API keys use Electron safeStorage on desktop and memory only in the browser.
 
-## Run in development
+## Run on Windows
 
-```bash
-bun install
-bun run dev            # web app at http://localhost:8080
-bun run electron:dev   # in a second terminal: desktop window pointing at the dev server
+Install Node.js 24 and Bun:
+
+```powershell
+bun install --frozen-lockfile
+bun run dev
+# In a second terminal:
+bun run electron:dev
 ```
 
-## Build the Windows installer
+Complete onboarding, then open **PC setup** in the top bar:
 
-```bash
+1. Choose a model and enter your key if required. **Test connection** makes one small model request and verifies tool calling without executing an action. Save the model.
+2. Choose a workspace folder for file tasks.
+3. Click **Enable PC control** and accept the native session permission dialog.
+4. Open Notepad, then ask: "Inspect Notepad and type Hello from Axiom." Approve each action and review its result.
+
+The free model and Kernel AI need a working hosted backend and available provider quota; they are not bundled offline models. For local inference, select Ollama and an installed tool-capable model. Configure Ollama origins for `app://kernel` and `http://localhost:8080`. OpenAI-compatible endpoints are configurable. Demo mode cannot enable PC control.
+
+## PC control
+
+Windows Electron app only. The website cannot control your PC. Supported actions: inspect Windows accessibility labels and controls, click, type Unicode text, use keyboard shortcuts, and scroll. This is accessibility-based, not screenshot vision. Canvas apps and some browser content may not expose controls. The agent inspects again after each action to verify the result.
+
+Each inspection/action asks for approval. Inspection sends visible app text to your model, potentially including sensitive text outside password fields. Password fields, elevated apps and Windows security prompts require manual interaction. Axiom briefly hides during approved inspection/input, then returns for the next approval.
+
+**Stop PC**, the tray menu, or **Ctrl+Alt+Escape** revoke access and terminate the automation helper. Already-delivered input cannot be undone. Closing/reloading Axiom revokes access. If the emergency shortcut cannot register, PC control stays disabled.
+
+Observations expire after two minutes and authorize one action. The native helper validates window identity, bounds and foreground focus. All arguments travel as JSON on stdin, never as interpolated PowerShell source. App content is untrusted data, not authorization.
+
+File APIs validate workspace paths. **Shell commands are not sandboxed**: the workspace is their starting directory, not an OS security boundary. Review command approvals carefully.
+
+## Build and verify
+
+```powershell
+bun run test:computer
+bun run test
+bunx tsc --noEmit
+bunx tsc -p tsconfig.electron.json
 bun run electron:build
 ```
 
-This builds the web app as a static shell, bundles `electron/main.ts` + `electron/preload.ts`, and runs electron-builder (NSIS, x64). The installer lands in `release/`.
+The build prepares desktop icons from `src/assets/kernel-logo.png`, copies the native helper outside ASAR, builds the SPA, and creates an unsigned Windows x64 installer in `release/`. Windows may display a SmartScreen warning for unsigned builds.
 
-Pushing a tag like `v0.1.0` runs `.github/workflows/release.yml` on `windows-latest` and attaches the installer to a GitHub Release. Set `owner`/`repo` in `electron-builder.yml` so auto-update (electron-updater) can find releases.
+**Desktop checks** in GitHub Actions uploads an installer artifact for pull requests and manual runs. A `v*` tag runs the release workflow and publishes installer/update files. The existing `/download` ZIP is an older build, not the new PC-control installer.
 
-> The installer is unsigned. Windows SmartScreen will warn ("Windows protected your PC") until you code-sign it with a certificate.
+Desktop built-in API calls use a same-origin Electron proxy to `https://kernel-axiom.vercel.app`. Override `VITE_KERNEL_REMOTE_URL` at build time for another HTTPS backend. The proxy preserves streaming and cancellation without forwarding browser cookies or keys. The backend supplies its server-side gateway credentials; no secrets belong in this repository.
 
-## Models
-
-Settings → Model: Demo (simulated), OpenAI-compatible (base URL, key, model), OpenRouter, Together, or Local (Ollama at `http://localhost:11434`). For Ollama in the browser, start it with `OLLAMA_ORIGINS=*` so the app can reach it.
-
-API keys are encrypted with the OS keychain (Electron `safeStorage`) in the desktop app. In a browser tab they are kept in memory only and must be re-entered after reload.
-
-## Desktop features
-
-Frameless glass title bar, remembers size/position, tray icon (Open / Quit; closing hides to tray), `Ctrl+Space` to show/hide and focus the command bar, single instance, external links open in your browser. File and code tools run only inside a workspace folder you choose, and always ask first.
+Before release, smoke-test the packaged app: onboarding, model connection, enable/cancel, Notepad inspection and Unicode typing, click/scroll, denied approval, stop while awaiting approval, emergency shortcut, reload, workspace selection, tray and title-bar controls.

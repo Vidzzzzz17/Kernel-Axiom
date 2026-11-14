@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { workspaceApi } from "./workspace";
+import { computerApi } from "./computer";
+import { proxyApi } from "./api-proxy";
 
 const DEV_URL = process.env.KERNEL_DEV_URL ?? "http://localhost:8080";
 const isDev = !app.isPackaged;
@@ -14,6 +16,26 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let quitting = false;
 let workspaceRoot: string | null = null;
+const computer = computerApi(path.join(__dirname.replace(/app\.asar(?=[\\/])/, "app.asar.unpacked"), "computer.ps1"), process.pid);
+let controlEpoch = 0;
+function stopComputer() {
+  controlEpoch++;
+  const status = computer.stop();
+  win?.webContents.send("computer:stopped");
+  return status;
+}
+function trustedUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return isDev ? url.origin === new URL(DEV_URL).origin : url.protocol === "app:" && url.host === "kernel";
+  } catch { return false; }
+}
+function assertSender(event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent) {
+  if (!win || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame || !trustedUrl(event.senderFrame.url)) throw new Error("Untrusted desktop request.");
+}
+function openExternal(url: string) {
+  if (/^(https?:|mailto:|tel:|sms:|geo:)/i.test(url)) void shell.openExternal(url);
+}
 
 protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
@@ -67,21 +89,24 @@ function createWindow() {
   win.on("resize", saveBounds);
   win.on("move", saveBounds);
   win.on("close", (e) => {
+    stopComputer();
     if (!quitting) {
       e.preventDefault();
       win?.hide();
     }
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternal(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (e, url) => {
-    if (!url.startsWith(DEV_URL) && !url.startsWith("app://")) {
+    if (!trustedUrl(url)) {
       e.preventDefault();
-      shell.openExternal(url);
+      openExternal(url);
     }
   });
+  win.webContents.on("did-start-navigation", (_event, _url, _inPlace, isMainFrame) => { if (isMainFrame) stopComputer(); });
+  win.webContents.on("render-process-gone", stopComputer);
   win.loadURL(isDev ? DEV_URL : "app://kernel/");
 }
 
@@ -96,9 +121,12 @@ app.whenReady().then(() => {
   // Serve the built SPA from dist/client; unknown paths fall back to the shell.
   const root = resource("dist", "client");
   protocol.handle("app", (req) => {
+    const url = new URL(req.url);
+    if (url.host !== "kernel") return new Response("Not found", { status: 404 });
+    if (url.pathname.startsWith("/api/")) return proxyApi(req, process.env.KERNEL_REMOTE_URL || "https://kernel-axiom.vercel.app", net.fetch);
     const rel = decodeURIComponent(new URL(req.url).pathname);
     let file = path.join(root, rel);
-    if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, "_shell.html");
+    if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, "_shell.html");
     return net.fetch(pathToFileURL(file).toString());
   });
 
@@ -109,6 +137,7 @@ app.whenReady().then(() => {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: "Open Kernel Axiom", click: () => showWindow() },
+      { label: "Stop PC control", click: () => { stopComputer(); showWindow(); } },
       { type: "separator" },
       { label: "Quit", click: () => { quitting = true; app.quit(); } },
     ]),
@@ -120,26 +149,51 @@ app.whenReady().then(() => {
     else showWindow(true);
   });
 
+  globalShortcut.register("Control+Alt+Escape", () => { stopComputer(); showWindow(); });
   if (!isDev) autoUpdater.checkForUpdatesAndNotify().catch(() => undefined);
 });
 
-app.on("before-quit", () => (quitting = true));
+app.on("before-quit", () => { quitting = true; stopComputer(); });
 app.on("will-quit", () => globalShortcut.unregisterAll());
 app.on("window-all-closed", () => {
   /* stay in tray */
 });
 
 /* ---------- IPC ---------- */
-ipcMain.on("win:minimize", () => win?.minimize());
-ipcMain.on("win:toggle-maximize", () => (win?.isMaximized() ? win.unmaximize() : win?.maximize()));
-ipcMain.on("win:close", () => win?.close());
+const handle = (channel: string, listener: (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown) =>
+  ipcMain.handle(channel, (event, ...args) => { assertSender(event); return listener(event, ...args); });
+handle("computer:status", () => computer.status());
+handle("computer:enable", async () => {
+  if (!globalShortcut.isRegistered("Control+Alt+Escape")) throw new Error("Ctrl+Alt+Escape is unavailable. Close the app using that shortcut and restart Axiom.");
+  const epoch = controlEpoch;
+  const answer = await dialog.showMessageBox(win!, {
+    type: "question", buttons: ["Cancel", "Enable for this session"], defaultId: 0, cancelId: 0,
+    title: "Enable PC control?",
+    message: "Allow Kernel Axiom to inspect and control Windows apps?",
+    detail: "Visible app text can be sent to your selected AI provider after approval. Clicks, typing and shortcuts ask first. Press Ctrl+Alt+Escape to stop. Access resets when you close or reload Axiom.",
+  });
+  if (answer.response !== 1 || epoch !== controlEpoch) return computer.status();
+  return computer.enable();
+});
+handle("computer:stop", () => stopComputer());
+handle("computer:execute", async (_event, action: unknown) => {
+  if (!computer.status().enabled) throw new Error("Enable PC control first.");
+  if (computer.status().busy) throw new Error("A computer action is already running.");
+  const visible = !!win?.isVisible();
+  win?.hide();
+  try { return await computer.execute(action); }
+  finally { if (visible && !quitting) showWindow(); }
+});
+ipcMain.on("win:minimize", (e) => { assertSender(e); win?.minimize(); });
+ipcMain.on("win:toggle-maximize", (e) => { assertSender(e); win?.isMaximized() ? win.unmaximize() : win?.maximize(); });
+ipcMain.on("win:close", (e) => { assertSender(e); win?.close(); });
 
-ipcMain.handle("secrets:get", (_e, name: string) => {
+handle("secrets:get", (_e, name: string) => {
   const enc = readSecrets()[name];
   if (!enc || !safeStorage.isEncryptionAvailable()) return null;
   return safeStorage.decryptString(Buffer.from(enc, "base64"));
 });
-ipcMain.handle("secrets:set", (_e, name: string, value: string) => {
+handle("secrets:set", (_e, name: string, value: string) => {
   if (!safeStorage.isEncryptionAvailable()) throw new Error("System encryption is unavailable.");
   const all = readSecrets();
   all[name] = safeStorage.encryptString(value).toString("base64");
@@ -155,7 +209,7 @@ try {
 }
 const ws = workspaceApi(() => workspaceRoot);
 
-ipcMain.handle("ws:choose", async () => {
+handle("ws:choose", async () => {
   const r = await dialog.showOpenDialog(win!, { properties: ["openDirectory", "createDirectory"] });
   if (!r.canceled) {
     workspaceRoot = path.resolve(r.filePaths[0]);
@@ -163,9 +217,10 @@ ipcMain.handle("ws:choose", async () => {
   }
   return workspaceRoot;
 });
-ipcMain.handle("ws:root", () => workspaceRoot);
-ipcMain.handle("ws:read", (_e, rel: string) => ws.read(rel));
-ipcMain.handle("ws:write", (_e, rel: string, content: string) => ws.write(rel, content));
-ipcMain.handle("ws:list", (_e, rel: string) => ws.list(rel));
-ipcMain.handle("ws:run", (_e, code: string, lang: string) => ws.run(code, lang));
-ipcMain.handle("ws:cmd", (_e, command: string) => ws.cmd(command));
+handle("ws:root", () => workspaceRoot);
+handle("ws:read", (_e, rel: string) => ws.read(rel));
+handle("ws:write", (_e, rel: string, content: string) => ws.write(rel, content));
+handle("ws:list", (_e, rel: string) => ws.list(rel));
+handle("ws:run", (_e, code: string, lang: string) => ws.run(code, lang));
+handle("ws:cmd", (_e, command: string) => ws.cmd(command));
+

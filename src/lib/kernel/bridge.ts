@@ -3,6 +3,13 @@
  * falls back: secrets live in memory only, tools run against local IndexedDB.
  */
 export interface KernelBridge {
+  computer?: {
+    status(): Promise<{ supported: boolean; enabled: boolean; busy: boolean }>;
+    enable(): Promise<{ supported: boolean; enabled: boolean; busy: boolean }>;
+    stop(): Promise<{ supported: boolean; enabled: boolean; busy: boolean }>;
+    execute(action: unknown): Promise<Record<string, unknown>>;
+    onStopped(cb: () => void): () => void;
+  };
   secrets: { get(name: string): Promise<string | null>; set(name: string, value: string): Promise<void> };
   window?: { minimize(): void; toggleMaximize(): void; close(): void };
   workspace?: {
@@ -14,7 +21,7 @@ export interface KernelBridge {
     listFiles(rel: string): Promise<{ name: string; dir: boolean }[]>;
     root(): Promise<string | null>;
   };
-  onFocusCommandBar?(cb: () => void): void;
+  onFocusCommandBar?(cb: () => void): () => void;
 }
 
 declare global {
@@ -37,3 +44,4 @@ export const secrets = {
     memory.set(name, value);
   },
 };
+

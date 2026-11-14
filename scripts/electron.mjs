@@ -4,6 +4,7 @@
 //   node scripts/electron.mjs build     -> SPA web build + compile + electron-builder (win x64)
 import { build } from "esbuild";
 import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync } from "node:fs";
 
 const mode = process.argv[2] ?? "compile";
 const run = (cmd, args, env = {}) => {
@@ -18,12 +19,18 @@ await build({
   format: "cjs",
   target: "node20",
   external: ["electron"],
+  define: { "process.env.KERNEL_REMOTE_URL": JSON.stringify(process.env.VITE_KERNEL_REMOTE_URL || "https://kernel-axiom.vercel.app") },
   outdir: "dist-electron",
   outExtension: { ".js": ".cjs" },
 });
+mkdirSync("build", { recursive: true });
+copyFileSync("src/assets/kernel-logo.png", "build/icon.png");
+copyFileSync("src/assets/kernel-logo.png", "build/tray.png");
+copyFileSync("electron/computer.ps1", "dist-electron/computer.ps1");
 
 if (mode === "dev") run("npx", ["electron", "."]);
 if (mode === "build") {
   run("npx", ["vite", "build"], { KERNEL_ELECTRON: "1" });
   run("npx", ["electron-builder", "--win", "--x64", "--publish", process.env.CI ? "always" : "never"]);
 }
+

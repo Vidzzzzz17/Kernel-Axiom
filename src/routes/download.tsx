@@ -3,7 +3,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { ArrowLeft, Monitor, Smartphone, Globe } from "lucide-react";
 import { Backdrop } from "@/components/kernel/Backdrop";
-import { Orb } from "@/components/kernel/Orb";
+import kernelLogo from "@/assets/kernel-logo.png";
 import { KButton, spring } from "@/components/kernel/ui";
 
 import windowsBuild from "@/assets/downloads/KernelAxiom-Windows-x64.zip.asset.json";
@@ -45,13 +45,13 @@ function DownloadPage() {
       icon: Monitor,
       label: "Windows",
       title: "Desktop app",
-      body: "Works on files and runs commands in a folder you choose. Tray icon, Ctrl+Space to summon.",
+      body: "The existing download supports files and commands. The new PC-control build adds app inspection, mouse, keyboard and a setup modal; get it from GitHub Releases when published.",
       action: (
         <a href={WINDOWS_URL} download="KernelAxiom-Windows-x64.zip" className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/85">
           Download for Windows ({WINDOWS_SIZE_MB} MB)
         </a>
       ),
-      note: "Windows 10 and 11, 64-bit. Unzip, then open Kernel Axiom.exe. SmartScreen may warn until the app is signed: choose More info, then Run anyway.",
+      note: "Windows 10 and 11, 64-bit. This ZIP is the previous build. New installers are published at github.com/Vidzzzzz17/Kernel-Axiom/releases. PC control requires the updated desktop build.",
     },
     {
       icon: Smartphone,
@@ -95,7 +95,7 @@ function DownloadPage() {
           <ArrowLeft className="size-4" aria-hidden /> Back to Kernel Axiom
         </Link>
         <header className="mt-10 flex flex-col items-center text-center">
-          <Orb size={104} state="celebrating" />
+          <img src={kernelLogo} alt="Kernel Axiom" className="size-28 rounded-3xl" />
           <h1 className="rise-in mt-8 text-5xl sm:text-6xl">Get Kernel Axiom</h1>
           <p className="mt-4 max-w-md text-muted-foreground">One calm agent on your computer and your phone. It asks before it acts.</p>
         </header>
@@ -121,3 +121,4 @@ function DownloadPage() {
     </div>
   );
 }
+

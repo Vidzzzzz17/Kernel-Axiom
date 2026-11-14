@@ -1,5 +1,6 @@
 import { Minus, Square, X } from "lucide-react";
 import { IconButton } from "./ui";
+import kernelLogo from "@/assets/kernel-logo.png";
 
 /** Custom frameless-window title bar. Only renders inside the desktop app. */
 export function TitleBar() {
@@ -7,7 +8,7 @@ export function TitleBar() {
   if (!w) return null;
   return (
     <div className="glass-soft flex h-10 items-center justify-between pl-4 [-webkit-app-region:drag]">
-      <span className="label-mono text-muted-foreground">Kernel Axiom</span>
+      <span className="label-mono flex items-center gap-2 text-muted-foreground"><img src={kernelLogo} alt="" className="size-6 rounded-md" />Kernel Axiom</span>
       <div className="flex [-webkit-app-region:no-drag]">
         <IconButton label="Minimize" className="h-10 rounded-none" onClick={() => w.minimize()}>
           <Minus className="size-4" aria-hidden />
@@ -22,3 +23,4 @@ export function TitleBar() {
     </div>
   );
 }
+
