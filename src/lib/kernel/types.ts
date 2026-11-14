@@ -51,6 +51,7 @@ export interface Task {
   title: string;
   createdAt: number;
   updatedAt: number;
+  pinned?: boolean;
 }
 
 export interface ChatMessage {
