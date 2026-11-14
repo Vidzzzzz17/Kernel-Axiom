@@ -10,7 +10,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Backdrop } from "./Backdrop";
 import { Orb } from "./Orb";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, type SidebarAction } from "./Sidebar";
+import { LibraryPanel } from "./LibraryPanel";
+import { PROMPT_PREFIX } from "@/lib/kernel/library";
 import { Composer } from "./Composer";
 import { StepsCard } from "./StepsCard";
 import { ApprovalCard } from "./ApprovalCard";
@@ -59,7 +61,9 @@ export function KernelApp() {
   const [view, setView] = useState<WorkspaceView>(EMPTY_VIEW);
   const [wsOpen, setWsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState<false | "Model" | "Memory">(false);
+  const [settingsOpen, setSettingsOpen] = useState<false | "Model" | "Memory" | "Data">(false);
+  const [library, setLibrary] = useState<"notes" | "prompts" | null>(null);
+  const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [computerOpen, setComputerOpen] = useState(false);
   const [computerEnabled, setComputerEnabled] = useState(false);
@@ -205,9 +209,33 @@ export function KernelApp() {
   const newTask = () => {
     if (running) stop();
     setActiveId(null);
+    setLibrary(null);
+    setDraft(null);
     setWsOpen(false);
     setNavOpen(false);
     setTimeout(() => composerRef.current?.focus(), 50);
+  };
+
+  const selectTask = (id: string) => { setActiveId(id); setLibrary(null); setNavOpen(false); };
+  const sidebarAction = (action: SidebarAction) => {
+    setNavOpen(false);
+    if (action === "notes" || action === "prompts") { setLibrary(action); setWsOpen(false); }
+    if (action === "memory") setSettingsOpen("Memory");
+    if (action === "data") setSettingsOpen("Data");
+    if (action === "voice") setVoiceOpen(true);
+    if (action === "computer") setComputerOpen(true);
+  };
+  const usePrompt = (text: string) => {
+    newTask();
+    setDraft({ text, nonce: Date.now() });
+  };
+  const sidebarProps = {
+    tasks, activeId, library,
+    noteCount: notes.filter(n => !n.path.startsWith(PROMPT_PREFIX)).length,
+    onSelect: selectTask, onNew: newTask, onSettings: () => { setNavOpen(false); setSettingsOpen("Model"); },
+    onDelete: removeTask, onAction: sidebarAction,
+    onPin: (id: string, pinned: boolean) => { void db.tasks.update(id, { pinned }); },
+    onRename: (id: string, title: string) => { void db.tasks.update(id, { title }); },
   };
 
   if (settings === undefined) return <Backdrop />; // loading from IndexedDB
@@ -224,24 +252,13 @@ export function KernelApp() {
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         {/* Sidebar */}
         <div className="hidden md:block">
-          <Sidebar tasks={tasks} activeId={activeId} onSelect={setActiveId} onNew={newTask} onSettings={() => setSettingsOpen("Model")}
-                  onDelete={removeTask} />
+          <Sidebar {...sidebarProps} />
         </div>
         <AnimatePresence>
           {navOpen && (
             <motion.div className="fixed inset-0 z-40 bg-background/40 p-3 backdrop-blur-sm md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setNavOpen(false)}>
               <motion.div initial={{ x: -40 }} animate={{ x: 0 }} exit={{ x: -40 }} transition={spring} className="h-full w-fit" onClick={(e) => e.stopPropagation()}>
-                <Sidebar
-                  tasks={tasks}
-                  activeId={activeId}
-                  onSelect={(id) => {
-                    setActiveId(id);
-                    setNavOpen(false);
-                  }}
-                  onNew={newTask}
-                  onSettings={() => setSettingsOpen("Model")}
-                  onDelete={removeTask}
-                />
+                <Sidebar {...sidebarProps} />
               </motion.div>
             </motion.div>
           )}
@@ -270,12 +287,12 @@ export function KernelApp() {
             </div>
           </header>
 
-          {isHome ? (
+          {library ? <LibraryPanel key={library} kind={library} onClose={() => setLibrary(null)} onUse={usePrompt} /> : isHome ? (
             <div className="flex flex-1 flex-col items-center justify-center px-4 pb-10">
               <Orb size={96} state="looking" follow className="sm:hidden" />
               <Orb size={128} state="looking" follow className="hidden sm:block" />
               <h2 className="rise-in mt-8 text-center text-4xl sm:text-5xl">What should we work on?</h2>
-              <Composer ref={composerRef} className="mt-8 w-full max-w-2xl" onSend={send} onVoice={() => setVoiceOpen(true)} hint />
+              <Composer ref={composerRef} draft={draft} className="mt-8 w-full max-w-2xl" onSend={send} onVoice={() => setVoiceOpen(true)} hint />
               <ul className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((s) => (
                   <li key={s}>
@@ -358,7 +375,7 @@ export function KernelApp() {
         onOpenChange={setPaletteOpen}
         tasks={tasks}
         notes={notes}
-        onTask={setActiveId}
+        onTask={selectTask}
         onAction={(a) => {
           if (a === "new") newTask();
           if (a === "settings") setSettingsOpen("Model");
@@ -376,7 +393,7 @@ export function KernelApp() {
           <VoiceMode
             running={running}
             orb={run?.orb ?? "listening"}
-            toolLabel={run?.steps.at(-1)?.status === "running" ? run.steps.at(-1)!.title : run?.label ?? ""}
+            toolLabel={run?.steps.at(-1)?.status === "running" ? run.steps.at(-1)?.title ?? "" : run?.label ?? ""}
             reply={run?.text ?? ""}
             onSend={send}
             onClose={() => setVoiceOpen(false)}
