@@ -368,6 +368,10 @@ async function runModel({ history, prompt, settings, signal, emit, requestApprov
 
   for (let turn = 0; turn < 24; turn++) {
     signal.throwIfAborted();
+    if (settings.provider === "opensource" && turn > 0) {
+      emit({ type: "status", orb: "thinking", label: "Waiting for free model · up to 45 seconds" });
+      await sleep(45000, signal);
+    }
     for (const note of takeSteer()) messages.push({ role: "user", content: `(Steering note from the user, mid-task) ${note}` });
     emit({ type: "status", orb: "thinking", label: "Thinking" });
     let wrote = false;

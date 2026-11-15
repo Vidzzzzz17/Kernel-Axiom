@@ -140,7 +140,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
               ) : (
                 <input className={cn(field, "font-mono text-xs")} value={model} onChange={(e) => setModel(e.target.value)} />
               )}
-              {(provider === "ollama" || provider === "opensource" || provider === "openrouterfree") && (
+              {(provider === "ollama" || provider === "openrouterfree") && (
                 <KButton type="button" className="shrink-0 rounded-xl" onClick={loadModels}>
                   Find models
                 </KButton>

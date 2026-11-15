@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconButton } from "./ui";
@@ -17,6 +17,8 @@ interface Props {
 export const Composer = forwardRef<HTMLTextAreaElement, Props>(
   ({ running, onSend, onStop, onVoice, placeholder = "Ask Kernel Axiom to do something", hint, className, draft }, ref) => {
     const [value, setValue] = useState("");
+    const [fileError, setFileError] = useState("");
+    const fileRef = useRef<HTMLInputElement>(null);
     useEffect(() => { if (draft) setValue(draft.text); }, [draft]);
     const submit = () => {
       const t = value.trim();
@@ -25,14 +27,22 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(
       setValue("");
     };
     return (
-      <form
-        className={cn("glass flex items-end gap-1 rounded-[28px] p-1.5", className)}
+      <div className={className}><form
+        className={cn("glass flex items-end gap-1 rounded-[28px] p-1.5")}
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
       >
-        <IconButton type="button" label="Attach" className="text-muted-foreground">
+        <input ref={fileRef} type="file" accept=".txt,.md,.csv,.json,.log" className="hidden" onChange={async e => {
+          const file = e.target.files?.[0]; if (!file) return;
+          setFileError("");
+          if (file.size > 100000) setFileError("Choose a text file smaller than 100 KB.");
+          else try { const text = await file.text(); setValue(v => `${v}${v ? "\n\n" : ""}Attached file: ${file.name}\n\n${text}`); }
+          catch { setFileError("Couldn't read this file."); }
+          e.target.value = "";
+        }} />
+        <IconButton type="button" label="Attach text file" onClick={() => fileRef.current?.click()} className="text-muted-foreground">
           <Plus className="size-5" aria-hidden />
         </IconButton>
         <label className="sr-only" htmlFor="composer">
@@ -70,7 +80,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(
             <ArrowUp className="size-5" aria-hidden />
           </IconButton>
         )}
-      </form>
+      </form>{fileError && <p role="alert" className="mt-2 text-sm text-destructive">{fileError}</p>}</div>
     );
   },
 );
