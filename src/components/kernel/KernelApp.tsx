@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Menu, Monitor, PanelRight, X } from "lucide-react";
+import { Copy, Download, Menu, Monitor, PanelRight, X } from "lucide-react";
 import ReactMarkdownLite from "./MessageText";
-import { db, DEFAULT_SETTINGS, deleteTask, saveSettings, uid } from "@/lib/kernel/db";
+import { db, DEFAULT_SETTINGS, deleteTask, getSettings, saveSettings, uid } from "@/lib/kernel/db";
 import { runAgent } from "@/lib/kernel/agent";
 import type { ApprovalRecord, ApprovalRequest, ChatMessage, OrbState, Step, WorkspaceView } from "@/lib/kernel/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -46,7 +46,7 @@ const EMPTY_VIEW: WorkspaceView = { url: "", readingLine: -1, code: "", status: 
 
 export function KernelApp() {
   // undefined only while loading; a missing row means first launch.
-  const settings = useLiveQuery(async () => (await db.settings.get("settings")) ?? DEFAULT_SETTINGS, []);
+  const settings = useLiveQuery(getSettings, []);
   const tasks = useLiveQuery(() => db.tasks.orderBy("updatedAt").reverse().toArray(), []) ?? [];
   const notes = useLiveQuery(() => db.memory.orderBy("updatedAt").reverse().toArray(), []) ?? [];
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -432,6 +432,7 @@ function AssistantBlock({
   live?: boolean | undefined;
   pending?: { req: ApprovalRequest; resolve: (ok: boolean) => void } | null;
 }) {
+  const [copied, setCopied] = useState(false);
   return (
     <div className="flex gap-3">
       <div className={cn("mt-0.5 h-fit rounded-full", live && !["done", "celebrating", "error", "paused"].includes(orb) && "orb-halo")}>
@@ -446,6 +447,17 @@ function AssistantBlock({
         </p>
         {steps.length > 0 && <StepsCard steps={steps} startedAt={startedAt} live={live} />}
         {text && <ReactMarkdownLite text={text} streaming={live && orb === "speaking"} />}
+        {text && !live && <div className="flex gap-1">
+          <IconButton label={copied ? "Copied reply" : "Copy reply"} onClick={async () => {
+            try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+            catch { setCopied(false); }
+          }}><Copy className="size-4" aria-hidden /></IconButton>
+          <IconButton label="Download reply" onClick={() => {
+            const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+            const link = document.createElement("a"); link.href = url; link.download = "kernel-axiom-reply.md"; link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}><Download className="size-4" aria-hidden /></IconButton>
+        </div>}
         {live && !text && orb === "thinking" && steps.length === 0 && <p className="shimmer-text text-[15px]">Thinking it through</p>}
         {approvals.map((a) => (
           <ApprovalCard key={a.id} request={a} record />

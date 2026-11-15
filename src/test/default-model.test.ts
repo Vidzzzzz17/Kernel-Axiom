@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_SETTINGS } from "@/lib/kernel/db";
 import { PROVIDER_PRESETS, friendlyMessage, resolveBase } from "@/lib/kernel/modelClient";
+import { normalizeProviderSettings } from "@/lib/kernel/providerSettings";
 
 describe("Default model", () => {
+  it("repairs a stale free-provider model and browser-blocked endpoint", () => {
+    const result = normalizeProviderSettings({ ...DEFAULT_SETTINGS, baseUrl: "https://text.pollinations.ai/openai", model: "mistral" });
+    expect(result.baseUrl).toBe("/api/opensource");
+    expect(result.model).toBe("openai-fast");
+  });
   it("starts on the free open-source model with no key needed", () => {
     expect(DEFAULT_SETTINGS.provider).toBe("opensource");
     expect(PROVIDER_PRESETS.opensource.needsKey).toBe(false);

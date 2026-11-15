@@ -1,8 +1,9 @@
 import type { ProviderKind, Settings } from "./types";
 import { secrets } from "./bridge";
+import { normalizeProviderSettings } from "./providerSettings";
 
 export const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: string; model: string; needsKey: boolean }> = {
-  opensource: { label: "Open source (free)", baseUrl: "/api/opensource", model: "openai-fast", needsKey: false },
+  opensource: { label: "GPT-OSS · Free, no key", baseUrl: "/api/opensource", model: "openai-fast", needsKey: false },
   openrouterfree: { label: "Gemma (free, free key)", baseUrl: "https://openrouter.ai/api/v1", model: "google/gemma-4-31b-it:free", needsKey: true },
   kernel: { label: "Kernel AI (built in)", baseUrl: "/api/kernel", model: "openai/gpt-6-astra", needsKey: false },
   demo: { label: "Demo (simulated)", baseUrl: "", model: "", needsKey: false },
@@ -38,7 +39,7 @@ export interface ToolDef {
 /** Turn a raw provider failure into something the user can act on. */
 export function friendlyMessage(provider: ProviderKind, status: number | undefined, raw: string): string {
   if (provider === "opensource" && (status === 402 || status === 429)) {
-    return "The free open-source model is rate limited (about one reply every 45 seconds). Wait a moment and try again, or pick Kernel AI in Settings for replies without waits.";
+    return "The free open-source model is rate limited. Wait about 45 seconds and try again. Availability depends on the free service.";
   }
   if (status === 402) return "AI credits are used up for this workspace. Add credits to keep going.";
   if (status === 429) return "Too many requests right now. Wait a moment and try again.";
@@ -91,7 +92,7 @@ export async function streamChat(opts: {
   onReasoning?: (delta: string) => void;
   apiKey?: string;
 }): Promise<StreamResult> {
-  const { settings } = opts;
+  const settings = normalizeProviderSettings(opts.settings);
   const preset = PROVIDER_PRESETS[settings.provider];
   const key = opts.apiKey || await secrets.get(apiKeyName(settings.provider));
   if (preset.needsKey && !key) throw new Error("No API key set for this provider. Add it in Settings.");
@@ -155,6 +156,7 @@ export async function streamChat(opts: {
       }
     }
   }
+  if (!text.trim() && !calls.some(c => c.function.name)) throw new ModelError("The model returned an empty reply. Try again or check your model connection.");
   return { text, toolCalls: calls.filter(Boolean) };
 }
 

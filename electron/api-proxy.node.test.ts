@@ -26,10 +26,20 @@ test("rejects arbitrary routes, foreign hosts, queries and methods", async () =>
 });
 test("blocks insecure or credential-bearing upstreams", async () => {
   const transport: typeof fetch = async () => { throw new Error("Must not fetch"); };
-  for (const host of ["http://example.com", "https://user:secret@example.com"]) assert.equal((await proxyApi(new Request("app://kernel/api/opensource/models"), host, transport)).status, 503);
+  for (const host of ["http://example.com", "https://user:secret@example.com"]) assert.equal((await proxyApi(new Request("app://kernel/api/kernel/fetch", { method: "POST", body: "{}" }), host, transport)).status, 503);
 });
 test("preserves provider errors and reports network failures", async () => {
-  const request = () => new Request("app://kernel/api/opensource/models");
+  const request = () => new Request("app://kernel/api/kernel/fetch", { method: "POST", body: "{}" });
   assert.equal((await proxyApi(request(), remote, async () => new Response("limited", { status: 429 }))).status, 429);
   assert.equal((await proxyApi(request(), remote, async () => { throw new Error("offline"); })).status, 502);
+});
+test("free desktop chat works without a hosted site and fixes the model name", async () => {
+  const response = await proxyApi(new Request("app://kernel/api/opensource/chat/completions", { method: "POST", body: JSON.stringify({ model: "broken-model", messages: [{ role: "user", content: "Hello" }] }), headers: { Origin: "app://kernel", Authorization: "private" } }), "not-configured", async (url, init) => {
+    assert.equal(url, "https://text.pollinations.ai/openai/chat/completions");
+    assert.equal(JSON.parse(String(init.body)).model, "openai-fast");
+    assert.equal(new Headers(init.headers).has("Origin"), false);
+    assert.equal(new Headers(init.headers).has("Authorization"), false);
+    return new Response("data: reply\n\n");
+  });
+  assert.equal(await response.text(), "data: reply\n\n");
 });

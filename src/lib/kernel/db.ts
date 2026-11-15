@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import { PROVIDER_PRESETS } from "./modelClient";
 import type { ChatMessage, MemoryNote, Settings, Task } from "./types";
+import { normalizeProviderSettings } from "./providerSettings";
 
 class KernelDB extends Dexie {
   tasks!: Table<Task, string>;
@@ -29,12 +30,12 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export async function getSettings(): Promise<Settings> {
-  return (await db.settings.get("settings")) ?? DEFAULT_SETTINGS;
+  return normalizeProviderSettings((await db.settings.get("settings")) ?? DEFAULT_SETTINGS);
 }
 
 export async function saveSettings(patch: Partial<Settings>) {
   const current = await getSettings();
-  await db.settings.put({ ...current, ...patch, id: "settings" });
+  await db.settings.put(normalizeProviderSettings({ ...current, ...patch, id: "settings" }));
 }
 
 export const uid = () =>

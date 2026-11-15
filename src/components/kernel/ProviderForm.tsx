@@ -4,14 +4,16 @@ import { secrets, isDesktop } from "@/lib/kernel/bridge";
 import type { ProviderKind, Settings } from "@/lib/kernel/types";
 import { cn } from "@/lib/utils";
 import { KButton } from "./ui";
+import { normalizeProviderSettings } from "@/lib/kernel/providerSettings";
 
 const field =
   "min-h-11 w-full rounded-xl border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-foreground";
 
 export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { settings: Settings; onSave: (s: Partial<Settings>) => void | Promise<void>; submitLabel?: string }) {
-  const [provider, setProvider] = useState<ProviderKind>(settings.provider);
-  const [baseUrl, setBaseUrl] = useState(settings.baseUrl || PROVIDER_PRESETS[settings.provider].baseUrl);
-  const [model, setModel] = useState(settings.model || PROVIDER_PRESETS[settings.provider].model);
+  const initial = normalizeProviderSettings(settings);
+  const [provider, setProvider] = useState<ProviderKind>(initial.provider);
+  const [baseUrl, setBaseUrl] = useState(initial.baseUrl || PROVIDER_PRESETS[initial.provider].baseUrl);
+  const [model, setModel] = useState(initial.model || PROVIDER_PRESETS[initial.provider].model);
   const [key, setKey] = useState("");
   const [hasKey, setHasKey] = useState(false);
   const [models, setModels] = useState<string[]>([]);
@@ -45,7 +47,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
     setModelErr("");
     const ctrl = new AbortController();
     testController.current = ctrl;
-    const timer = setTimeout(() => ctrl.abort(), 20000);
+    const timer = setTimeout(() => ctrl.abort(), 90000);
     try {
       const result = await streamChat({
         settings: { ...settings, provider, baseUrl, model }, apiKey: key,
@@ -53,7 +55,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
         messages: [{ role: "user", content: "Connection test. Call connection_check with no arguments. Do not perform any other action." }],
         tools: [{ type: "function", function: { name: "connection_check", description: "Verify tool calling without taking any action.", parameters: { type: "object", properties: {}, required: [], additionalProperties: false } } }],
       });
-      setFeedback(result.toolCalls.some(c => c.function.name === "connection_check") ? "Connected. Tool calling works. Save this model to use it." : "Connected, but tool calling was not confirmed. Choose a tool-capable model for PC tasks.");
+      setFeedback(result.toolCalls.some(c => c.function.name === "connection_check") ? "Connected. Chat and tool calling work." : "Chat connected. Tool calling was not confirmed for this model.");
     } catch (error) {
       setModelErr(ctrl.signal.aborted ? "Connection test timed out or was cancelled." : (error as Error).message);
     } finally { clearTimeout(timer); setBusy(false); testController.current = null; }
@@ -92,23 +94,14 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
     >
       <fieldset>
         <legend className="label-mono text-muted-foreground">Provider</legend>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {(Object.keys(PROVIDER_PRESETS) as ProviderKind[]).map((p) => (
-            <button
-              type="button"
-              disabled={busy}
-              key={p}
-              aria-pressed={provider === p}
-              onClick={() => pick(p)}
-              className={cn(
-                "min-h-11 rounded-xl border border-border px-3 text-left text-sm transition-colors",
-                provider === p ? "bg-primary text-primary-foreground" : "hover:bg-foreground/5",
-              )}
-            >
-              {PROVIDER_PRESETS[p].label}
-            </button>
-          ))}
-        </div>
+        <select aria-label="Model provider" disabled={busy} className={cn(field, "mt-2")} value={provider} onChange={e => pick(e.target.value as ProviderKind)}>
+          <option value="opensource">{PROVIDER_PRESETS.opensource.label}</option>
+          <optgroup label="Other connections">
+            {(Object.keys(PROVIDER_PRESETS) as ProviderKind[]).filter(p => p !== "opensource" && p !== "demo").map(p => <option key={p} value={p}>{PROVIDER_PRESETS[p].label}</option>)}
+          </optgroup>
+          <optgroup label="Preview only"><option value="demo">{PROVIDER_PRESETS.demo.label}</option></optgroup>
+        </select>
+        {provider !== "opensource" && <KButton className="mt-2" type="button" disabled={busy} onClick={() => pick("opensource")}>Use free GPT-OSS</KButton>}
       </fieldset>
 
       {provider === "kernel" ? (
@@ -123,8 +116,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
         <>
           {provider === "opensource" && (
             <p className="text-sm text-muted-foreground">
-              An open-source model (GPT-OSS), free, no key and no account. The free tier allows roughly one reply every
-              45 seconds, so longer tasks take longer.
+              GPT-OSS 20B. Free, no key or account. Chat and approved tasks use the same model. Replies may take about 45 seconds; multi-step tasks wait automatically. Requires internet.
             </p>
           )}
           {provider === "openrouterfree" && (
@@ -132,7 +124,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
               Google's Gemma and other free models through OpenRouter. Add your OpenRouter key, then use Find models to choose a model. Availability and rate limits vary; test tool calling before PC tasks.
             </p>
           )}
-          <label className="block">
+          {provider !== "opensource" && <><label className="block">
             <span className="label-mono text-muted-foreground">Base URL</span>
             <input className={cn(field, "mt-1.5 font-mono text-xs")} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
           </label>
@@ -148,13 +140,13 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
               ) : (
                 <input className={cn(field, "font-mono text-xs")} value={model} onChange={(e) => setModel(e.target.value)} />
               )}
-              {(provider === "ollama" || provider === "opensource" || provider === "openrouterfree") && (
+              {(provider === "ollama" || provider === "openrouterfree") && (
                 <KButton type="button" className="shrink-0 rounded-xl" onClick={loadModels}>
                   Find models
                 </KButton>
               )}
             </div>
-          </label>
+          </label></>}
           {preset.needsKey && (
             <label className="block">
               <span className="label-mono text-muted-foreground">API key {hasKey && "· saved"}</span>
@@ -178,7 +170,7 @@ export function ProviderForm({ settings, onSave, submitLabel = "Save" }: { setti
       {modelErr && <p role="alert" className="text-sm text-destructive">{modelErr}</p>}
       {feedback && <p role="status" className="text-sm text-muted-foreground">{feedback}</p>}
       <div className="flex justify-end gap-2">
-        {provider !== "demo" && <KButton type="button" onClick={testConnection} disabled={busy || (preset.needsKey && !hasKey && !key) || !model.trim()}>Test connection</KButton>}
+        {provider !== "demo" && <KButton type="button" onClick={testConnection} disabled={busy || (preset.needsKey && !hasKey && !key) || !model.trim()}>{busy ? "Connecting…" : "Test connection"}</KButton>}
         <KButton variant="primary" type="submit" disabled={busy || (provider !== "demo" && !model.trim()) || (preset.needsKey && !hasKey && !key)}>
           {submitLabel}
         </KButton>
