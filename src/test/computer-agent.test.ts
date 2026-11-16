@@ -23,6 +23,19 @@ beforeEach(() => {
   Object.defineProperty(window, "kernel", { configurable: true, value: { workspace: {}, computer: { status: mocks.status, stop: mocks.stop, execute: mocks.execute } } });
 });
 describe("computer tool approval boundaries", () => {
+  it("waits 45 seconds before the next free-model step and can be stopped", async () => {
+    vi.useFakeTimers();
+    const request = input();
+    request.settings = { ...settings, provider: "opensource" };
+    try {
+      const result = runAgent(request);
+      await vi.advanceTimersByTimeAsync(44999);
+      expect(mocks.streamChat).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await result;
+      expect(mocks.streamChat).toHaveBeenCalledTimes(2);
+    } finally { vi.useRealTimers(); }
+  });
   it("does not inspect when permission is denied", async () => {
     const request = input(undefined, vi.fn(async () => false));
     await runAgent(request);

@@ -6,7 +6,7 @@ import { Backdrop } from "@/components/kernel/Backdrop";
 import kernelLogo from "@/assets/kernel-logo.png";
 import { KButton, spring } from "@/components/kernel/ui";
 
-import windowsBuild from "@/assets/downloads/KernelAxiom-Windows-x64.zip.asset.json";
+import windowsBuild from "@/assets/downloads/KernelAxiom-Setup-x64.exe.asset.json";
 
 const WINDOWS_URL = windowsBuild.url;
 const WINDOWS_SIZE_MB = Math.round(windowsBuild.size / 1_000_000);
@@ -45,13 +45,13 @@ function DownloadPage() {
       icon: Monitor,
       label: "Windows",
       title: "Desktop app",
-      body: "The existing download supports files and commands. The new PC-control build adds app inspection, mouse, keyboard and a setup modal; get it from GitHub Releases when published.",
+      body: "Free GPT-OSS chat, files, commands and approved Windows app control. Includes the latest notes, prompts and reply downloads.",
       action: (
-        <a href={WINDOWS_URL} download="KernelAxiom-Windows-x64.zip" className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/85">
+        <a href={WINDOWS_URL} download="KernelAxiom-Setup-x64.exe" className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/85">
           Download for Windows ({WINDOWS_SIZE_MB} MB)
         </a>
       ),
-      note: "Windows 10 and 11, 64-bit. This ZIP is the previous build. New installers are published at github.com/Vidzzzzz17/Kernel-Axiom/releases. PC control requires the updated desktop build.",
+      note: "Windows 10 and 11, 64-bit. Open the setup file to install. No administrator access needed. Free chat needs internet; the free service may be busy. This installer is unsigned and Windows may warn you. Installation and PC control have not been tested on a real Windows computer.",
     },
     {
       icon: Smartphone,
