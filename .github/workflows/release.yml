@@ -19,6 +19,36 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run test:computer
       - run: bun run test
+      - run: bunx tsc --noEmit
+      - run: bunx tsc -p tsconfig.electron.json
+      - name: Build Windows installer
+        run: |
+          bun run electron:compile
+          bun run build
+          bunx electron-builder --win --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          KERNEL_ELECTRON: "1"
+          VITE_KERNEL_REMOTE_URL: https://kernel-axiom.vercel.app
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/KernelAxiom-Setup-x64.exe
+            release/*.blockmap
+            release/latest.yml:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run test:computer
+      - run: bun run test
       - name: Build installer and publish to GitHub Releases
         run: bun run electron:build
         env:
