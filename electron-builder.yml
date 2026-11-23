@@ -27,6 +27,8 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Kernel Axiom
+  perMachine: false
+  artifactName: KernelAxiom-Setup-${arch}.exe
 publish:
   provider: github
   owner: Vidzzzzz17
